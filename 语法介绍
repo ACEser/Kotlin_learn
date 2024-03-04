@@ -1,0 +1,436 @@
+/**
+ * You can edit, run, and share this code.
+ * play.kotlinlang.org
+ */
+import kotlin.math.max
+
+fun methodName ( param1: Int, param2: Int ): Int{
+    return max(param1 , param2)
+}
+fun maxnumber(param1:Int , param2:Int ):Int = max(param1,param2)
+
+fun maxnumber2(a : Int , b : Int ):Int{
+    
+    return if(a>b){
+        a
+    }else{
+        b
+    }
+    
+}
+// 进一步精简一下，将上面的语法结合起来
+fun maxnumber3(a : Int , b: Int ) = if(a>b) a else b
+
+fun getSocre(name : String) = if(name == "Tom"){86}
+else if(name =="Jim"){77}
+else if(name == "Jack"){88}
+else if(name == "Lily"){100}
+else {0}
+
+//when语法逻辑
+fun getScorePlus(name :String ) = when(name){
+    "Tom"->23
+    "Jack"->24
+    "Jim"->34
+    "Lily"->100
+    else->0
+}
+//when语法：类型匹配
+//匹配逻辑：匹配值 -> {执行逻辑}
+fun checknumber(num:Number){
+    when (num){
+        is Int -> println("number is Int")
+        is Double -> println("number is Double")
+        else -> println("number is not support")
+    }
+}
+//when 其他语法特性，比如要求每个以“tom”开头的人（“tom”，“tommy”）的分数全都是86分
+fun getScore2(name: String) = when{
+    //name.startWith("Tom") -> 35
+    name == "Jack" -> 77
+    name == "Jim" -> 44
+    name == "Lilg" -> 235
+    else -> 0
+}
+
+// fun main() {
+//    	val a : Int = 10
+//     var b : Int = 12
+//     val lar = methodName(a,b)
+//     val c : Int = 13
+//     val d : Int = 14
+//     val lar2 = maxnumber(c,d)
+//     val lar3 = maxnumber2(c,d)
+//     println("large number is " + lar)
+//     println("a = " + a)
+//     println("b = " + b)
+//     println("large number is " + lar2)
+//     println("large number is " + lar3)
+//     val lar4 = maxnumber2(a,b)
+//     println("large number is " + lar4)    
+//     val num = 10L
+//     checknumber(num)
+//kotlin 的区间语法，下面的写法就是表示[0,10]
+// 	val arr = 0..10
+//kotlin 的强化 for in 循环
+//     for(i in 0..10){
+//         println(i)
+//     }
+
+//左开右闭区间，因为一般来说是从0到9比较熟悉
+// 	val arrge = 0 until 10
+//     for(i in 0 until 10){
+//         println(i)
+//     }
+//step可以指定步长
+// 	for(i in 0 until 10 step 2){
+//     	println(i)    
+//     }
+//downto可以创建一个降序的区间
+// 	for(i in 10 downTo 1 step 2){
+//         println(i)
+//     }
+// }
+
+
+
+//面向对象编程
+open class Person{
+    var name =""
+    var age =0;
+    fun eat(){
+        println(name + " is eating. He is "+ age + " year old.")
+    }
+}
+//需要手动的加上open关键字，类才可以被继承
+class Student: Person() {
+    var sno = "" 
+    var grade = 0
+}
+//这个继承的类后面有一个括号，是因为kotlin的构造函数分两类，一类主构造函数，另一类是次构造函数
+class Student2(val sno: String, val grade :Int):Person(){}
+//这可以传入参数，当然也可以不传，每个类默认都有一个不带参数的主构造函数。但是这样写，在主函数构造时要传入所有参数
+
+
+open class Person2(val name:String, val age:Int){
+    init {
+        println("He is " + name + " age is "+ age)
+    }
+}
+class Student3(val sno:String , val grade :Int, name:String, age:Int ):Person2(name,age){
+	init {
+		println("sno is " + sno)
+        println("grade is " + grade)
+    }
+}
+
+//接口，注意接口别加上括号
+interface Study{
+    fun readBooks()
+    //kotlin 的接口可以默认构造
+    fun doHomework(){
+        println("do homework default implementation")
+    }
+}
+//实现以下接口的逻辑
+fun doStudy(study:Study){
+    study.readBooks()
+    study.doHomework()
+}
+
+//注意还得实现一下接口的构造，这个类只是调用了参数而已
+class Student4(name:String , age:Int):Person2(name,age),Study{
+    override fun readBooks(){
+		println(name + " is reading")
+    }
+    override fun doHomework(){
+        println(name + " is doing Homework")
+    }
+}
+fun main1(){
+//     val p = Person()
+//     p.name = "HS"
+//     p.age = 19
+//     p.eat()
+//     val s =Student()
+//    	s.sno = "kk"
+//     s.grade = 101
+//     println(s.sno + s.grade)
+    //要把上面的和起来写，直接初始化全部的参数，就需要用到这个继承类的括号
+    val s1 = Student3("fa",23,"gjl",35)
+	//接口调用示意
+    //val p2 = Person()
+    val s2 = Student4("xiaoming",23)
+    doStudy(s2)
+}
+
+//数据类的学习下面是java的数据类写法
+// pubulic class Cellphone {
+//     String brand;
+//     double price;
+//     public Cellphone (String brand, double price){
+//         this.brand = brand;
+//         this.price = price;
+//     }
+//     @Override
+//     public boolen equals(Object obj){
+//         if(obj.instanceof Cellphone){
+//             Cellphone other = (Cellphone)obj;
+//             return other.brand.equals(brand) && other.price == price;
+//         }
+//     }
+//     @Override
+//     pubulic int hashCode(){
+//         return brand.hashCode()+(int)price
+//     }
+//     @Override
+//     public String toString() {
+//         return "Cellphone(brand=" + brand + ", price=" + price + ")";
+//     }
+// }
+
+//而kotlin只需要一行代码，它内部帮我们自动写好了这部分数据类的修改
+data class Cellphone(val brand: String, val price :Double)
+//数据类测试
+fun main2(){
+    val cellphone =Cellphone("Samsung",1299.34)
+    val cellphone2 = Cellphone("Samsung",1299.34)
+    println(cellphone)
+    println("cellphone1 equals cellphone2 " + (cellphone==cellphone2) )
+	//直接调用单例类就好
+    Singleton.singletonTest()
+}
+//单例类，别+括号
+object Singleton{
+    fun singletonTest(){
+        println("singleton is called")
+    }
+}
+
+//lambde表达式
+fun main4(){
+    //首先是集合的遍历，kotlin的集合初始化非常简单
+    var list = listOf("Apple","Banana","Orange","Pear","Grape")
+    //遍历一下集合
+    for(i in list){
+        println(i)
+    }
+    //上面是不可变的集合（不能修改只能读取），下面创建一个可变的集合
+    var list2 = mutableListOf("Apple","Banana","Orange","Pear","Grape")
+    list2.add("Watermelon")
+    for(fruit in list2){
+        println(fruit)
+    }
+    //Set集合的创建基本一样
+    var set = mutableListOf("Apple","Banana","Orange","Pear","Grape")
+    //关于map 的写法，kotlin也给了函数，注意 to 前后要有间隔
+    val map = mapOf("Apple" to 1, "Banana" to 2, "Orange" to 3, "Pear" to 4)
+    //遍历map
+    for((fruit, number) in map){
+        println("fruit is " + fruit +" number is "+ number)
+    }
+    //用Lambda表达式寻找集合中最长的元素
+    //Lambda表达式的格式 ｛参数名1：参数类型，参数名2：参数类型 -> 函数体｝
+    var maxLengthFruit = list.maxBy{it.length}
+    println("maxLengthFruit is " + maxLengthFruit)
+    
+    //下面是上面这段表达式的简化过程
+    //将lambda传入到maxBy函数中
+    var lambda = {fruit :String -> fruit.length}
+    val maxLengthfruit = list.maxBy(lambda)
+    //接下来是简化，首先不用定义lambda。可以直接传入表达式
+    val maxLengthFruit2 = list.maxBy(){fruit:String ->fruit.length}
+	//接下来，如果Lambda参数是函数的唯一一个参数的话，还可以将函数的括号省略：
+    val maxLengthFruit3 = list.maxBy { fruit: String -> fruit.length }
+    //由于Kotlin拥有出色的类型推导机制，Lambda表达式中的参数列表其实在大多数情况下不必声明参数类型
+    val maxLengthFruit4 = list.maxBy { fruit -> fruit.length }
+    //当Lambda表达式的参数列表中只有一个参数时，也不必声明参数名，可以使用it关键字
+    val maxLengthFruit5 = list.maxBy { it.length }
+    
+    //集合中的map函数是最常用的一种函数式API，
+    //它用于将集合中的每个元素都映射成一个另外的值，
+    //映射的规则在Lambda表达式中指定，最终生成一个新的集合
+    var newlist = list.map{it.toUpperCase()}
+    for(fruit in newlist){
+        println(fruit)
+    }
+    
+    //另外一个比较常用的函数式API——filter函数。
+    //顾名思义，filter函数是用来过滤集合中的数据的，
+    //它可以单独使用，也可以配合刚才的map函数一起使用。
+    newlist = list.filter{it.length < 5}.map{it.toUpperCase()}
+    for(fruit in newlist){
+        println(fruit)
+    }
+    
+    //接下来我们继续学习两个比较常用的函数式API——any和all函数。
+    //其中any函数用于判断集合中是否至少存在一个元素满足指定条件，
+    //all函数用于判断集合中是否所有元素都满足指定条件
+    val anyResult = list.any { it.length <= 5 }
+    val allResult = list.all { it.length <= 5 }
+    println("anyResult is " + anyResult + ", allResult is " + allResult)
+
+}
+
+//Java API的使用
+// interface Runnable{
+//     void run()
+// }
+
+//     new Thread(new Runnable(){
+//     @Override
+//     public void run(){
+//         System.out.println("Thread is running ");
+//     }
+// }).start();
+
+//上面注释的是Java的写法，直接翻译成kotlin格式是：
+// Thread(object : Runnable {
+//     override fun run() {
+//         println("Thread is running")
+//     }
+// }).start()
+
+//精简后的代码，类型自动识别，同时只有一个待实现函数，自动识别不用显式重写
+// Thread(Runnable{
+//     println("Thread is running")
+// }).start()
+
+//另外，如果一个Java方法的参数列表中有且仅有一个Java单抽象方法接口参数，
+//我们还可以将接口名进行省略
+// Thread({
+//     println("Thread is running")
+// }).start()
+
+//还记得上次简化lambda表达式吗，
+//“如果Lambda参数是函数的唯一一个参数的话，还可以将函数的括号省略”，
+//类似的这次也可以
+// Thread(
+// println("Thread is running")
+// ).start()
+
+fun main5(){
+	Thread {
+    println("Thread is running")
+}.start()
+}
+
+//kotlin空指针优化
+fun main6(){
+    //默认不能传入空
+    //doStudy(null)
+    //运行上述代码会报错：Null can not be a value of a non-null type Study
+	//也就是说，Kotlin将空指针异常的检查提前到了编译时期，
+	//如果我们的程序存在空指针异常的风险，那么在编译的时候会直接报错，
+	//修正之后才能成功运行，这样就可以保证程序在运行时期不会出现空指针异常了。
+    
+    //kotlin提供了另外一套可为空的类型系统，只不过在使用可为空的类型系统时，
+    //我们需要在编译时期就将所有潜在的空指针异常都处理掉，否则代码将无法编译通过。
+	
+    //那么可为空的类型系统是什么样的呢？很简单，就是在类名的后面加上一个问号。
+    
+}
+fun doStudy2(study:Study?){
+//     study.readBooks()
+//     study.doHomework()
+    //上述写法不通过，因为有可能调用这两个函数时会造成空指针异常
+    //需要判断确保不会有空指针
+    if(study!=null){
+        study.readBooks()
+    	study.doHomework()	
+    }
+    //但是if语句不仅麻烦而且不能判断全局变量的空指针问题，所以kotlin提供了一些辅助工具
+    study?.readBooks()
+    //?表示对象为空时什么都不做
+    //val c = a ?: b
+    //?:操作符。这个操作符的左右两边都接收一个表达式，
+    //如果左边表达式的结果不为空就返回左边表达式的结果，否则就返回右边表达式的结果
+	
+}
+//比如,我们可以简化判断文本是否为空（运行为空）的代码，使用上面的逻辑和之前学过的知识就是
+fun getTextLength(text: String?): Int {
+    if (text != null) {
+        return text.length
+    }
+    return 0
+}
+//修改为
+fun getTextLength2(text :String?) = text?.length?:0
+
+//有时候我们在外部检查了不为空，但是函数内部并不知道，
+//所以会判断不通过，这时候可以使用！！这个工具
+// 比如下面不加！！这段代码会不通过
+var content: String? = "hello"
+
+fun main7() {
+    if (content != null) {
+        printUpperCase()
+    }
+}
+
+fun printUpperCase() {
+    //这里加上！！才能通过
+    val upperCase = content!!.toUpperCase()
+    println(upperCase)
+}
+//虽然这样编写代码确实可以通过编译，但是当你想要使用非空断言工具的时候，
+//最好提醒一下自己，是不是还有更好的实现方式。
+//你最自信这个对象不会为空的时候，其实可能就是一个潜在空指针异常发生的时候。
+
+//最后我们再来学习一个比较与众不同的辅助工具——let。
+//let既不是操作符，也不是什么关键字，而是一个函数。
+//这个函数提供了函数式API的编程接口，并将原始调用对象作为参数传递到Lambda表达式中
+//obj.let { obj2 -> 编写具体的业务逻辑 }
+//可以看到，这里调用了obj对象的let函数，然后Lambda表达式中的代码就会立即执行，并且这个obj对象本身还会作为参数传递到Lambda表达式中。
+//不过，为了防止变量重名，这里我将参数名改成了obj2，
+//但实际上它们是同一个对象，这就是let函数的作用。
+
+//let 主要是可以优化？：的判断逻辑，
+//因为加上？之后，其实每次调用函数，
+//都要判断传入的对象是否为空（实际上只需要判断一次就好），用let可以优化
+
+fun doStudy3(study: Study?) {
+    //这里？表示为空什么都不做，而let函数会将study对象本身作为参数传递到Lambda表达式中，
+    //此时的study对象肯定不为空了，我们就能放心地调用它的任意方法了。
+    study?.let { stu ->
+        stu.readBooks()
+        stu.doHomework()
+    }
+}
+//let函数是可以处理全局变量的判空问题的，而if判断语句则无法做到这一点
+
+//kotlin的一些小技巧：
+//字符串内嵌：${obj.name},当表达式中仅有一个变量的时候，还可以将两边的大括号省略，
+fun main(){
+    val brand = "Samsung"
+	val price = 1299.99
+	println("Cellphone(brand=" + brand + ", price=" + price + ")")
+    //上面的代码可以精简为：
+    println("Cellphone(brand=$brand, price=$price)")
+    //只传递一个值
+    printParams(123)
+}
+//给函数设定默认值，这样不会强制要求调用方传参，没有传值时会使用这个默认值
+fun printParams(num: Int, str: String = "hello") {
+    println("num is $num , str is $str")
+}
+//关于次构造函数，给函数设置默认值这个方法可以基本替代他的功能
+class Student6(val sno: String, val grade: Int, name: String, age: Int) :
+         Person2(name, age) {
+    constructor(name: String, age: Int) : this("", 0, name, age) {
+    }
+
+    constructor() : this("", 0) {
+    }
+}
+// 上述代码中有一个主构造函数和两个次构造函数，
+// 次构造函数在这里的作用是提供了使用更少参数来对Student类进行实例化的方式。
+// 无参的次构造函数会调用两个参数的次构造函数，并将这两个参数赋值成初始值。
+// 两个参数的次构造函数会调用4个参数的主构造函数，并将缺失的两个参数也赋值成初始值。  
+
+// 这种写法在Kotlin中其实是不必要的，
+// 因为我们完全可以通过只编写一个主构造函数，然后给参数设定默认值的方式来实现
+class Student7(val sno: String = "", val grade: Int = 0, name: String = "", age: Int = 0) :
+         Person2(name, age) {
+}
+         
