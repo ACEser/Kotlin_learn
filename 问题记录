@@ -1,0 +1,28 @@
+一些疑问记录，为什么
+class FirstApplication : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        //setContentView(R.layout.activity_first_application)
+        setContentView(R.layout.first_layout)
+        var Button = findViewById<Button>(R.id.button1)
+        //var button1 : Button = findViewById(R.id.button1)
+        Button.setOnClickListener{
+            Toast.makeText(this,"you click Button1",Toast.LENGTH_LONG).show()
+        }
+    }
+}
+不能直接使用
+class FirstApplication : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        //setContentView(R.layout.activity_first_application)
+        setContentView(R.layout.first_layout)
+        button1.setOnClickListener{
+            Toast.makeText(this,"you click Button1",Toast.LENGTH_LONG).show()
+        }
+    }
+}
+2.创建菜单按钮，结果文件夹创建多了一层，导致无法读取资源
+3.创建intent忘记导入包，应该在开头加上 import android.content.Intent
+4.隐式intent时候，添加<intent-filter>字母拼写错误，导致运行出错
+5.在尝试添加新的category时候，直接复制粘贴代码，导致监听器没找到资源直接崩溃。修改正确自己的包名就好
