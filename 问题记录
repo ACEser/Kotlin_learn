@@ -1,4 +1,6 @@
-一些疑问记录，为什么
+错误和解决方案记录
+
+1.为什么
 class FirstApplication : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,10 +24,29 @@ class FirstApplication : AppCompatActivity() {
         }
     }
 }
+
 2.创建菜单按钮，结果文件夹创建多了一层，导致无法读取资源
+
 3.创建intent忘记导入包，应该在开头加上 import android.content.Intent
+
 4.隐式intent时候，添加<intent-filter>字母拼写错误，导致运行出错
+
 5.在尝试添加新的category时候，直接复制粘贴代码，导致监听器没找到资源直接崩溃。修改正确自己的包名就好
+
 6.3.3.5　返回数据给上一个Activity 这个时候似乎有些问题，不知道为什么现在没办法自己寻找到合适的button2了，
 看书里说的软件应该是可以找到的，和第一个问题一样最后调用了：val button = findViewById<Button>(R.id.button1) 寻找到这个按钮
+
 7.日志打印的问题始终没解决。找不到log的输出在哪里可以看到。决定先往下写，之后在处理
+
+8.3.4.4　体验Activity的生命周期 创建activity时候，创建成了empty activity，结果发现要修改activity_main.xml 布局里面没有。
+所以就新创建一个，然后把书中修改后的代码activity_main.xml复制上去。
+
+9.接着是复制MainActivity的代码到主Activity里面，结果又找不到另外两个Activity，最后还是用
+val startNormalActivity = findViewById<Button>(R.id.NormalActivity)
+val startialogActivity = findViewById<Button>(R.id.DialogActivity)
+
+10.成功运行之后发现点击第二个按钮后APP直接崩溃，发现是AndroidMainfest里面指定的对话主题指错了。。应该加到DialogActivity里面
+结果被我加到了NormalActivity里面。。。最后通过看logcat的日志发现了问题
+似乎借此机会知道怎么调出程序的日志了，在那个package里面写程序的包名就好
+package:com.example.myapplicationtest2
+比如像上面这样，好像只有myapplicationtest2会变
