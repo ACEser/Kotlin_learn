@@ -39,7 +39,7 @@ class FirstApplication : AppCompatActivity() {
 7.日志打印的问题始终没解决。找不到log的输出在哪里可以看到。决定先往下写，之后在处理
 
 8.3.4.4　体验Activity的生命周期 创建activity时候，创建成了empty activity，结果发现要修改activity_main.xml 布局里面没有。
-所以就新创建一个，然后把书中修改后的代码activity_main.xml复制上去。
+所以就新创建一个，然后把书中修改后的代码activity_main.xml复制上去。（在devvai中查到的内容类似）
 
 9.接着是复制MainActivity的代码到主Activity里面，结果又找不到另外两个Activity，最后还是用
 val startNormalActivity = findViewById<Button>(R.id.NormalActivity)
@@ -50,3 +50,14 @@ val startialogActivity = findViewById<Button>(R.id.DialogActivity)
 似乎借此机会知道怎么调出程序的日志了，在那个package里面写程序的包名就好
 package:com.example.myapplicationtest2
 比如像上面这样，好像只有myapplicationtest2会变
+
+但是修改了以后点击第一个按钮会奔溃，没改是点击第二个按钮会崩溃，服了。。。算了先记录下，
+将主题android:theme="@style/Theme.AppCompat.dialog"修改为android:theme="@style/Theme.AppCompat"不管用
+所以最后将这两个Activity全都设置为对话格式（无语）。。。
+
+最后问了问gpt发现理解错误了：
+“布局文件与主题不是同一回事。布局文件主要定义的是界面元素的布局和视觉表现，
+而主题则旨在为整个app或activity提供一致的样式，包括颜色，字体，按钮样式等。
+Activity 的主题设定会影响到布局中所有的视图样式，所以一个Activity必须要有一个主题。”
+所以一定要设置一个布局。。。比如，android:theme="@style/Theme.AppCompat.Light"
+最后终于是正常显示了。。。
