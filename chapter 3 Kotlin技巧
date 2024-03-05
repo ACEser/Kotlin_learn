@@ -1,0 +1,99 @@
+class setflod(var name:String, var score:Double){
+    fun do2(){println("$name is $score")}
+}
+//注意引用对象这里也要加一个问号
+fun print(setflog:setflod?){
+    setflog?.let{
+        setflog.do2()
+    }
+}
+fun main2() {
+    val kotlin = "🙂"
+    println(kotlin)
+    //复习一下let，是给对象之间用的，代码逻辑是 obj.let { obj2 -> 编写具体的业务逻辑 }
+    //主要的作用就是结合？不用重复判空,单个函数好像不需要判空，
+    //因为直接不传不通过，所以肯定要有完整的参数才给通过，所以多用在函数相互调用之间
+    val set1 : setflod = setflod("fdsjk",32432.4)
+    print(set1)
+}
+
+//接下来是with函数的使用，比如下面这段代码
+fun main3(){
+    var list =listOf("apple","banana","orange","pear","grape")
+    var builder = StringBuilder()
+    builder.append("start eating fruit.\n")
+    for(fruit in list){
+        builder.append(fruit).append("\n")
+    }
+    builder.append("all fruit ate")
+    val result = builder.toString()
+    println(result)
+    //with函数会在Lambda表达式中提供第一个参数对象的上下文，
+	//并使用Lambda表达式中的最后一行代码作为返回值返回，
+	//所以上面的代码可以简写成下面这样
+    val result2 = with(StringBuilder()){
+        append("start eat fruit\n")
+        for(fruit in list){
+            append(fruit).append("\n")
+        }
+        append("end")
+        toString()
+    }
+	println(result2)
+    //再接下来就是run函数的使用，这个和with差不多，
+    //不过他是被对象调用，所以不传入对象。直接跟一个lambda表达式
+    val result3 = StringBuilder().run{
+        append("start eat fruit again\n")
+        for(fruit in list){
+            append(fruit).append("\n")
+        }
+        append("end again")
+        toString()
+    }
+    //但是上面这个会显示result3没有安全检查。所以有什么方式检查呢？
+    //可以这样改
+    val result4 = StringBuilder().run{
+        append("start eat fruit again\n")
+        for(fruit in list){
+            append(fruit).append("\n")
+        }
+        append("end again")
+        toString()
+    }.let{
+        if(it.isNotEmpty()){
+            println("string is empty")
+        }
+        else {
+            println("fdjkaf")
+        }
+    }
+    //apply基本和run一致，只是没办法设定返回值，返回对象本身
+    val list2 = listOf("Apple", "Banana", "Orange", "Pear", "Grape")
+	val result5 = StringBuilder().apply {
+    	append("Start eating fruits.\n")
+    	for (fruit in list2) {
+        	append(fruit).append("\n")
+    }
+    	append("Ate all fruits.")
+	}
+	println(result5.toString())
+
+}
+
+//Kotlin使用了单例类来大部分替换了java中的静态方法
+//（添加static后不需要创建实例就可以调用的方法），
+//不过想要在Kotlin中创建真正的静态方法，可以加上@JvmStatic
+class Util {
+    fun doAction1(){
+        println("do")
+    }
+    companion object{
+        fun doAction2(){
+            println("do 2")
+        }
+    }
+}
+fun main(){
+    //调用下单例类
+    Util.doAction2()
+}
