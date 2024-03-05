@@ -26,3 +26,6 @@ class FirstApplication : AppCompatActivity() {
 3.创建intent忘记导入包，应该在开头加上 import android.content.Intent
 4.隐式intent时候，添加<intent-filter>字母拼写错误，导致运行出错
 5.在尝试添加新的category时候，直接复制粘贴代码，导致监听器没找到资源直接崩溃。修改正确自己的包名就好
+6.3.3.5　返回数据给上一个Activity 这个时候似乎有些问题，不知道为什么现在没办法自己寻找到合适的button2了，
+看书里说的软件应该是可以找到的，和第一个问题一样最后调用了：val button = findViewById<Button>(R.id.button1) 寻找到这个按钮
+7.日志打印的问题始终没解决。找不到log的输出在哪里可以看到。决定先往下写，之后在处理
