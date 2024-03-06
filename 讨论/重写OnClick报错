@@ -1,0 +1,51 @@
+这样写：
+```
+//3.2 Edit text
+    override fun onClick(v: View?){
+        when(v?.id){
+            R.id.button1 -> {
+                val editText = findViewById<EditText>(R.id.editText)
+                val  inputtext= editText.text.toString()
+                Toast.makeText(this,inputtext,Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+```
+为什么报错：`'onClick' overrides nothing`
+
+GPT：
+
+`override fun onClick(v: View?)` 这句代码的意思是它试图覆盖一个已存在的 `onClick` 方法。
+这个方法通常在实现类似 `View.OnClickListener` 这样的接口时出现。
+错误提示 `'onClick' overrides nothing`就是因为你的类并没有实现这个接口或者继承自一个包含此方法的类。 
+这个问题的解决办法就是让你的类实现 `View.OnClickListener` 接口。下面是如何做的示例：
+
+```kotlin
+class YourActivity : AppCompatActivity(), View.OnClickListener {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.your_layout)
+
+        // 把 this 这个 Activity 设定成 button1 的点击事件监听器
+        val button1: Button = findViewById(R.id.button1)
+        button1.setOnClickListener(this)
+    }
+
+    override fun onClick(v: View?) {
+        when(v?.id) {
+            R.id.button1 -> {
+                val editText = findViewById<EditText>(R.id.editText)
+                val inputText = editText.text.toString()
+                Toast.makeText(this, inputText, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
+```
+
+上面的代码中，`YourActivity` 类实现了 `View.OnClickListener` 接口，
+然后覆盖了该接口的 `onClick` 方法。在 `onCreate` 方法中，
+通过 `button1.setOnClickListener(this)` 将 `YourActivity` 设置为 `button1` 的点击事件监听器。
+这样，当 `button1` 被点击时，就会触发 `YourActivity.onClick` 方法。
+（注意在class YourActivity : AppCompatActivity() 后面加上 View.OnClickListener ， 表示继承这个类）
