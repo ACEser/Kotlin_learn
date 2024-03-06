@@ -1,0 +1,15 @@
+我在资源库里面放了两张图片，并且将按钮绑定为点击按钮后，显示的图片会从图片1 切换到 图片2 
+但是发现没效果，源代码是：
+        <ImageView
+            android:id="@+id/imageview"
+            android:layout_width="matach_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/i1"/>
+
+我一开始觉得好像都挺正常，也没有什么代码错误提示，怎么就是显示不出来呢？
+后来发现是"match_parent"的锅，改为"wrap_content"，再点击按钮就可以显示了
+GPT的解释是：
+
+ImageView 的高度设置为 match_parent，可能会导致它填充整个剩余空间，
+如果其它的视图（例如按钮，文本视图，编辑文本）高度超过屏幕的可用空间，可能会导致 ImageView 不可见。 
+在这种情况下，你可能需要重新设置 ImageView 的高度为 wrap_content 或者设定一个固定的数值。
