@@ -61,3 +61,6 @@ package:com.example.myapplicationtest2
 Activity 的主题设定会影响到布局中所有的视图样式，所以一个Activity必须要有一个主题。”
 所以一定要设置一个布局。。。比如，android:theme="@style/Theme.AppCompat.Light"
 最后终于是正常显示了。。。
+
+
+11. 4.2.5　ProgressBar 写个转圈的进度条结果被图片覆盖了笑死。。。
