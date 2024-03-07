@@ -1,0 +1,56 @@
+这段话没看懂：
+```
+class FruitAdapter(val fruitList: List<Fruit>) :
+        RecyclerView.Adapter<FruitAdapter.ViewHolder>() {
+
+    inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val fruitImage: ImageView = view.findViewById(R.id.fruitImage)
+        val fruitName: TextView = view.findViewById(R.id.fruitName)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(parent.context)
+        .inflate(R.layout.fruit_item, parent, false)
+        return ViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val fruit = fruitList[position]
+        holder.fruitImage.setImageResource(fruit.imageId)
+        holder.fruitName.text = fruit.name
+    }
+
+    override fun getItemCount() = fruitList.size
+
+}
+
+这是RecyclerView适配器标准的写法，虽然看上去好像多了好几个方法，
+但其实它比ListView的适配器要更容易理解。这里我们首先定义了一个内部类ViewHolder，
+它要继承自RecyclerView.ViewHolder。
+然后ViewHolder的主构造函数中要传入一个View参数，这个参数通常就是RecyclerView子项的最外层布局，
+那么我们就可以通过findViewById()方法来获取布局中ImageView和TextView的实例了。
+```
+
+GPT：
+这段代码是用来构建 RecyclerView 的适配器的，适配器的主要工作就是将你的数据（在这个例子中是 `fruitList`）和 RecyclerView 的每一个单元格（每一个单元格就是一个可复用的视图）关联起来。
+
+在这个适配器中，有三个主要的函数：
+
+- `onCreateViewHolder`：当 RecyclerView 需要新的视图（即单元格）来显示列表项时，
+      这个函数就会被调用。在这个函数中，创建一个新的视图，并将其封装在 ViewHolder 中。
+      ViewHolder 是一个持有视图的对象，它可以直接访问该视图的所有子视图。
+      在这个函数中，我们先使用 LayoutInflater 将布局文件 `fruit_item.xml` 转化为 View 对象，然后传递给 ViewHolder 的构造函数。
+
+- `onBindViewHolder`：当 RecyclerView 需要显示特定位置的数据时，这个函数就会被调用。
+      在这个函数中，你需要更新 ViewHolder 中的视图，使其显示正确的数据。
+      这里，我们获取 `fruitList` 的第 `position` 个元素，然后更新 ViewHolder 中的 ImageView 的资源和 TextView 的文本。
+
+- `getItemCount`：这个函数返回你的数据集合的大小，也就是 `RecyclerView` 需要显示多少个元素。
+
+至于 `ViewHolder` 类，则是 RecyclerView 中用于管理视图复用的关键部分。
+      每个 ViewHolder 封装了一个视图，和在该视图中你关心的子视图的引用。
+      在这个例子中，ViewHolder 保存了一个 ImageView 和一个 TextView 的引用，它们分别显示水果的图片和水果的名字。
+
+此代码创建了一个 ViewHolder 并将其与数据相联系，
+      使得滚动过程中可以复用视图，大大提高了性能。      
+      
