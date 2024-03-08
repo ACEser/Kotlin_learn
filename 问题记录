@@ -80,3 +80,10 @@ java.lang.IllegalStateException：
 就在mainfest中将这个Activity加上一个主题
 
 17.设置标题栏的文字主要在Activity的主页面设置SetTitle显示
+
+18.关于 LayoutInflater 
+每个布局文件都由一个或多个 XML 元素组成，这些元素定义了你想在屏幕上看到的用户界面元素的摆放位置和样式。
+例如，你可能会在布局文件中定义一个 Button，并且设置其文本颜色、大小、宽高等属性。
+LayoutInflater 就是用来将这些布局文件解析为实际的视图组件。
+在解析过程中，LayoutInflater 会遍历布局文件中定义的每一个 XML 元素，
+并且对于每个元素，它都会生成一个相应类型的视图组件实例（比如 Button）、设置这个视图组件的属性，然后返回。
