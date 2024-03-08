@@ -1,0 +1,23 @@
+Android name 这个标签可以用来做什么，就是导入的XML布局格式吗？
+
+```
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/newsTitleLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" >
+
+    <fragment
+        android:id="@+id/newsTitleFrag"
+        android：name=“com.example.fragmentbestpractice.NewsTitleFragment”
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        />
+
+</FrameLayout>
+```
+
+GPT：
+这段代码调用的是一个Fragment，更准确的说，它在你的当前布局中定义一个Fragment容器，
+并指定了要加载哪个Fragment。在你的这段代码中，android:name属性是用于指定要放入容器的Fragment类的全名。
+这样，当这个布局被加载的时候，com.example.fragmentbestpractice.NewsTitleFragment就会被自动创建并插入到FrameLayout容器中。
+所以说，这并不是导入已有布局文件的方式，而是向该布局中插入一个Fragment。
