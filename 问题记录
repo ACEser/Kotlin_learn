@@ -72,3 +72,11 @@ Activity 的主题设定会影响到布局中所有的视图样式，所以一�
 14.如果要将屏幕填充，可以考虑一个组件设置layout_weight，另一个不设置，不设置的组件这样就会自动填充剩余的空间
 
 15. findviewidBy 要注意<>里面的查找元素的格式 ，要是格式出错，后面的调用可能就有问题
+
+16.注意，如果报错：
+无法启动活动 ComponentInfo{com.example.myapplicationtest2/com.example.myapplicationtest2.Recycleview}： 
+java.lang.IllegalStateException：
+您需要将 Theme.AppCompat 主题（或后代）用于此活动。
+就在mainfest中将这个Activity加上一个主题
+
+17.设置标题栏的文字主要在Activity的主页面设置SetTitle显示
