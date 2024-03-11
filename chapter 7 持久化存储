@@ -1,0 +1,294 @@
+持久化存储分为三种：文件，SharedPreference 和数据库存储
+
+关于持久化存储中的文件存储，写入和读写如下：
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        val inputText = load()
+这里使用判断，如果不为空就读取，同时设置宽度为文本长度
+        if (inputText.isNotEmpty()) {
+            editText.setText(inputText)
+            editText.setSelection(inputText.length)
+            Toast.makeText(this, "Restoring succeeded", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun load(): String {
+        val content = StringBuilder()
+        try {
+读取文件，一共两步，一个是先打开文件。
+            val input = openFileInput("data")
+下一步是将文件先使用INputStreamReader读取，再使用字节流的读取（Buffer）
+            val reader = BufferedReader(InputStreamReader(input))
+            reader.use {
+这里的forEach是一个内置函数，负责每一行的读取，只需要使用Lambda将函数拼接起来就行
+                reader.forEachLine {
+                    content.append(it)
+                }
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+        return content.toString()
+    }
+    ...
+}
+
+要想使用SharedPreferences存储数据，首先需要获取SharedPreferences对象
+Context类中的getSharedPreferences()方法
+Activity类中的getPreferences()方法
+
+得到了SharedPreferences对象之后，就可以开始向SharedPreferences文件中存储数据了，主要可以分为3步实现。
+(1) 调用SharedPreferences对象的edit()方法获取一个SharedPreferences.Editor对象。
+(2) 向SharedPreferences.Editor对象中添加数据，比如添加一个布尔型数据就使用putBoolean()方法，添加一个字符串则使用putString()方法，以此类推。
+(3) 调用apply()方法将添加的数据提交，从而完成数据存储操作。
+代码如下：
+
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        saveButton.setOnClickListener {
+      使用edit获取对象
+            val editor = getSharedPreferences("data", Context.MODE_PRIVATE).edit()
+        确定类型填充数据    
+        editor.putString("name", "Tom")
+            editor.putInt("age", 28)
+            editor.putBoolean("married", false)
+        提交存储
+            editor.apply()
+        }
+    }
+
+}
+
+SharePreference读取数据更加简单：
+SharedPreferences对象中提供了一系列的get方法，用于读取存储的数据，每种get方法都对应了SharedPreferences.Editor中的一种put方法，
+比如读取一个布尔型数据就使用getBoolean()方法
+
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        ...
+        restoreButton。setOnClickListener {
+      目前只有默认的MODE_PRIVATE这一种模式可选，它和直接传入0的效果是相同的
+            val prefs = getSharedPreferences("data", Context.MODE_PRIVATE)
+      第一个表示读取的数据，第二个表示读取失败后返回的值
+            val name = prefs.getString("name", "")
+            val age = prefs.getInt("age", 0)
+            val married = prefs.getBoolean("married", false)
+            Log.d("MainActivity", "name is $name")
+            Log.d("MainActivity", "age is $age")
+            Log.d("MainActivity", "married is $married")
+        }
+    }
+
+}
+
+最重要的还是数据库存储，SQLite
+Android为了让我们能够更加方便地管理数据库，专门提供了一个SQLiteOpenHelper帮助类
+SQLiteOpenHelper是一个抽象类，这意味着如果我们想要使用它，就需要创建一个自己的帮助类去继承它。
+SQLiteOpenHelper中有两个抽象方法：onCreate()和onUpgrade()。我们必须在自己的帮助类里重写这两个方法
+SQLiteOpenHelper中有两个构造方法可供重写，一般使用参数少一点的那个构造方法即可。
+这个构造方法中接收4个参数：第一个参数是Context，必须有它才能对数据库进行操作；
+第二个参数是数据库名，创建数据库时使用的就是这里指定的名称；
+第三个参数允许我们在查询数据的时候返回一个自定义的Cursor，一般传入null即可；
+第四个参数表示当前数据库的版本号，可用于对数据库进行升级操作
+class MyDatabaseHelper(val context: Context, name: String, version: Int) :
+        SQLiteOpenHelper(context, name, null, version) {
+//这个建表也很有意思
+    private val createBook = "create table Book (" +
+            " id integer primary key autoincrement," +
+            "author text," +
+            "price real," +
+            "pages integer," +
+            "name text)"
+
+    override fun onCreate(db: SQLiteDatabase) {
+        db.execSQL(createBook)
+        Toast.makeText(context, "Create succeeded", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+    }
+
+}
+
+如果需要提高可读性，可以尝试这样子建表：
+private val createBook = """
+    CREATE TABLE IF NOT EXISTS Book (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        author TEXT,
+        price REAL,
+        pages INTEGER,
+        名称 TEXT
+    )
+“”“.trimIndent（）
+
+db.execSQL(createBook)
+
+
+建表之后，更新：
+让onUpgrade()方法能够执行。还记得SQLiteOpenHelper的构造方法里接收的第四个参数吗？
+它表示当前数据库的版本号，之前我们传入的是1，现在只要传入一个比1大的数，就可以让onUpgrade()方法得到执行了
+  class MyDatabaseHelper(val context: Context, name: String, version: Int):
+        SQLiteOpenHelper（上下文， 名称， null， 版本） {
+    ...
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        db.execSQL("drop table if exists Book")
+        db.execSQL("drop table if exists Category")
+        onCreate(db)
+    }
+
+}
+数据的插入
+SQLiteDatabase中提供了一个insert()方法，专门用于添加数据。它接收3个参数：
+第一个参数是表名，我们希望向哪张表里添加数据，这里就传入该表的名字；
+第二个参数用于在未指定添加数据的情况下给某些可为空的列自动赋值NULL，一般我们用不到这个功能，直接传入null即可；
+第三个参数是一个ContentValues对象，它提供了一系列的put()方法重载，用于向ContentValues中添加数据，只需要将表中的每个列名以及相应的待添加数据传入即可。
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        val dbHelper = MyDatabaseHelper(this, "BookStore.db", 2)
+        ...
+        addData.setOnClickListener {
+            val db = dbHelper.writableDatabase
+            val values1 = ContentValues().apply {
+                // 开始组装第一条数据
+                put("name", "The Da Vinci Code")
+                put("author", "Dan Brown")
+                put("pages", 454)
+                put("price", 16.96)
+            }
+            db.insert("Book", null, values1) // 插入第一条数据
+            val values2 = ContentValues().apply {
+                // 开始组装第二条数据
+                put("name", "The Lost Symbol")
+                put("author", "Dan Brown")
+                put("pages", 510)
+                put("price", 19.95)
+            }
+            db.insert("Book", null, values2) // 插入第二条数据
+        }
+    }
+
+}
+更新数据
+SQLiteDatabase中提供了一个非常好用的update()方法，用于对数据进行更新。这个方法接收4个参数：
+第一个参数和insert()方法一样，也是表名，指定更新哪张表里的数据；
+第二个参数是ContentValues对象，要把更新数据在这里组装进去；
+第三、第四个参数用于约束更新某一行或某几行中的数据，不指定的话默认会更新所有行。
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        val dbHelper = MyDatabaseHelper(this, "BookStore.db", 2)
+        ...
+        updateData.setOnClickListener {
+            val db = dbHelper.writableDatabase
+            val values = ContentValues()
+            值。put（“价格”， 10.99）
+              第三个参数对应的是SQL语句的where部分，表示更新所有name等于?的行，而?是一个占位符，
+              可以通过第四个参数提供的一个字符串数组为第三个参数中的每个占位符指定相应的内容，
+              arrayOf()方法是Kotlin提供的一种用于便捷创建数组的内置方法
+            db.update("Book", values, "name = ?", arrayOf("The Da Vinci Code"))
+        }
+    }
+
+}
+
+删除数据
+SQLiteDatabase中提供了一个delete()方法，专门用于删除数据。
+这个方法接收3个参数：第一个参数仍然是表名，这个没什么好说的；
+第二、第三个参数用于约束删除某一行或某几行的数据，不指定的话默认会删除所有行。
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        val dbHelper = MyDatabaseHelper(this, "BookStore.db", 2)
+        ...
+        deleteData.setOnClickListener {
+            val db = dbHelper.writableDatabase
+            db.delete("Book", "pages > ?", arrayOf("500"))
+        }
+    }
+
+}
+
+查询数据
+相信你已经猜到了，SQLiteDatabase中还提供了一个query()方法用于对数据进行查询。这个方法的参数非常复杂，最短的一个方法重载也需要传入7个参数。
+那我们就先来看一下这7个参数各自的含义吧。第一个参数不用说，当然还是表名，表示我们希望从哪张表中查询数据。
+第二个参数用于指定去查询哪几列，如果不指定则默认查询所有列。第三、第四个参数用于约束查询某一行或某几行的数据，不指定则默认查询所有行的数据。
+第五个参数用于指定需要去group by的列，不指定则表示不对查询结果进行group by操作。
+第六个参数用于对group by之后的数据进行进一步的过滤，不指定则表示不进行过滤。第七个参数用于指定查询结果的排序方式，不指定则表示使用默认的排序方式。
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        val dbHelper = MyDatabaseHelper(this, "BookStore.db", 2)
+        ...
+        queryData.setOnClickListener {
+            val db = dbHelper.writableDatabase
+            // 查询Book表中所有的数据
+            val cursor = db.query("Book", null, null, null, null, null, null)
+            if (cursor.moveToFirst()) {
+                do {
+                    // 遍历Cursor对象，取出数据并打印
+                    val name = cursor.getString(cursor.getColumnIndex("name"))
+                    val author = cursor.getString(cursor.getColumnIndex("author"))
+                    val pages = cursor.getInt(cursor.getColumnIndex("pages"))
+                    val price = cursor.getDouble(cursor.getColumnIndex("price"))
+                    Log.d("MainActivity", "book name is $name")
+                    Log.d("MainActivity", "book author is $author")
+                    Log.d("MainActivity", "book pages is $pages")
+                    Log.d("MainActivity", "book price is $price")
+                      这个moveText是鼠标移动
+                } while (cursor.moveToNext())
+            }
+            cursor.close()
+        }
+    }
+
+}
+
+使用SQL操作数据库
+除了查询数据的时候调用的是SQLiteDatabase的rawQuery()方法，其他操作都是调用的execSQL()方法
+db.execSQL("insert into Book (name, author, pages, price) values(?, ?, ?, ?)",
+    arrayOf("The Da Vinci Code", "Dan Brown", "454", "16.96")
+)
+db.execSQL("insert into Book (name, author, pages, price) values(?, ?, ?, ?)",
+    arrayOf("The Lost Symbol", "Dan Brown", "510", "19.95")
+)
+分贝。execSQL（“更新书集价格 = ？where name = ？“， arrayOf（”10.99“， ”达芬奇密码“）） 
+分贝。 execSQL（“从书本中删除，其中页数>？ ”， arrayOf（“500”）） 
+val cursor = db.rawQuery("select * from Book", null)
+
+  最后是高阶函数简化SharePreference的用法（再抽象一层）
+val editor = getSharedPreferences("data", Context.MODE_PRIVATE).edit()
+编辑 器。putString（“名称”， “汤姆”）
+编辑 器。putInt（“年龄”， 28）
+editor.putBoolean("married", false)
+editor.apply()
+
+进一步简化成
+fun SharedPreferences.open(block: SharedPreferences.Editor.() -> Unit) {
+    val editor = edit()
+    editor.block()
+    editor.apply()
+}
+用法简化成
+getSharedPreferences("data", Context.MODE_PRIVATE).open {
+    putString("name", "Tom")
+    putInt("age", 28)
+    putBoolean("married", false)
+}
