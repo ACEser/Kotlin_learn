@@ -1,0 +1,33 @@
+这个`( ) -> T`是什么用法？
+```
+class Later<T>(val block: () -> T) {
+}
+```
+
+GPT：
+
+在 Kotlin 中，`( ) -> T` 表示一个函数类型，
+它表示一个没有参数且返回 `T` 类型的函数。在你提供的代码片段中：
+
+'''科特林
+class Later<T>(val block: () -> T) {
+}
+```
+
+`Later` 是一个泛型类，带有一个类型参数 `T`。
+类的构造函数接受一个名为 `block` 的参数，
+它是一个函数，这个函数不接受任何参数并返回一个 `T` 类型的值。
+
+该类的用途通常与惰性计算或延迟初始化有关。
+你可以传递一个 lambda 表达式或函数引用给 `Later` 的实例，
+在后续某一时刻，`Later` 类会调用这个表达式或函数，以获得其计算结果。
+下面是一个简单的例子：
+
+```kotlin
+val laterString = Later { "Hello, World!" }
+val result: String = laterString.block() // 调用 block，它会返回 "Hello, World!"
+```
+
+在这个例子中，我们创建了一个 `Later` 实例，
+它包装了一个 lambda 表达式，该表达式简单地返回一个字符串。
+然后我们可以调用 `laterString.block()` 来执行这个表达式并获取结果。
