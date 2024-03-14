@@ -97,3 +97,181 @@ fun main(){
     //调用下单例类
     Util.doAction2()
 }
+
+关于如何知晓活动的Activity：
+一个简单的的Kotlin类
+open class BaseActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        Log.d("BaseActivity", javaClass.simpleName)
+    }
+
+}
+
+接下来我们需要让BaseActivity成为ActivityTest项目中所有Activity的父类，
+为了使BaseActivity可以被继承，我已经提前在类名的前面加上了open关键字。 
+然后修改FirstActivity、SecondActivity和ThirdActivity的继承结构，让它们不再继承自AppCompatActivity，而是继承自BaseActivity。 
+而由于BaseActivity又是继承自AppCompatActivity的，所以项目中所有Activity的现有功能并不受影响，它们仍然继承了Activity中的所有特性。 
+
+3.6.2　随时随地退出程序
+其实解决思路也很简单，只需要用一个专门的集合对所有的Activity进行管理就可以了。下面我们就来实现一下
+新建一个单例类ActivityCollector作为Activity的集合，代码如下所示
+
+object ActivityCollector {
+
+    private val activities = ArrayList<Activity>()
+
+    fun addActivity(activity: Activity) {
+        activities.add(activity)
+    }
+
+    fun removeActivity(activity: Activity) {
+        activities.remove(activity)
+    }
+
+    fun finishAll（） {
+        for (activity in activities) {
+            if (!activity.isFinishing) {
+                activity.finish()
+            }
+        }
+        活动.clear（）
+    }
+
+}
+
+接下来修改BaseActivity中的代码
+open class BaseActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        Log.d("BaseActivity", javaClass.simpleName)
+        ActivityCollector.addActivity(this)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy（） 中
+        ActivityCollector.removeActivity(this)
+    }
+
+}
+
+这里使用了单例类，是因为全局只需要一个Activity集合
+注意在销毁Activity之前，我们需要先调用activity.isFinishing来判断Activity是否正在销毁中，
+因为Activity还可能通过按下Back键等方式被销毁，
+如果该Activity没有正在销毁中，我们再去调用它的finish()方法来销毁它。
+从此以后，不管你想在什么地方退出程序，只需要调用ActivityCollector.finishAll()方法就可以了
+
+
+3.6.3　启动Activity的最佳写法
+将参数暴露出来减少沟通成本和看代码的成本
+分工时可能一个人负责一个Activity，如果是按照下面这样：
+val intent = Intent(this, SecondActivity::class.java)
+intent.putExtra("param1", "data1")
+intent.putExtra（“参数2”， “数据2”）
+startActivity(intent)
+
+下一个接任者只能看代码或者问你才知道调用的参数
+更好的写法是静态方法
+class SecondActivity : BaseActivity() {
+    ...
+    companion object {
+        fun actionStart(context: Context, data1: String, data2: String) {
+            val intent = Intent(context, SecondActivity::class.java)
+            intent.putExtra("param1", data1)
+            intent.putExtra("param2", data2)
+            context.startActivity(intent)
+        }
+    }
+}
+使用一个静态方法Companion Object 将启动的代码打包成一个函数，暴露出需要传入的参数
+这样就不必因为不知道参数导致对接有困难
+调用其他人写的Activity只需要这样做
+button1.setOnClickListener {
+    SecondActivity.actionStart（this， “数据1”， “数据2”）
+}
+
+高阶函数
+
+with用法：
+val result = with(obj) {
+    // 这里是obj的上下文
+    "value" // with函数的返回值
+}
+
+
+比如下面这段代码：
+val list = listOf("Apple", "Banana", "Orange", "Pear", "Grape")
+val result = with(StringBuilder()) {
+    append("Start eating fruits.\n")
+    for (fruit in list) {
+        append(fruit).append("\n")
+    }
+    append("Ate all fruits.")
+    toString()
+}
+println(result)
+
+首先我们给with函数的第一个参数传入了一个StringBuilder对象，
+那么接下来整个Lambda表达式的上下文就会是这个StringBuilder对象。（原来上下文这个意思）
+于是我们在Lambda表达式中就不用再像刚才那样调用builder.append()和builder.toString()方法了，而是可以直接调用append()和toString()方法。
+Lambda表达式的最后一行代码会作为with函数的返回值返回，最终我们将结果打印出来。
+
+首先run函数通常不会直接调用，而是要在某个对象的基础上调用；
+其次run函数只接收一个Lambda参数，并且会在Lambda表达式中提供调用对象的上下文
+其他方面和with函数是一样的，包括也会使用Lambda表达式中的最后一行代码作为返回值返回
+val result = obj.run {
+    // 这里是obj的上下文
+    "value" // run函数的返回值
+}
+
+使用run实现和with相同的功能：
+val list = listOf("Apple", "Banana", "Orange", "Pear", "Grape")
+val result = StringBuilder().run {
+    append("Start eating fruits.\n")
+    for (fruit in list) {
+        append(fruit).append("\n")
+    }
+    append("Ate all fruits.")
+    toString()
+}
+println(result)
+
+其实没有什么很大的区别
+总体来说变化非常小，只是将调用with函数并传入StringBuilder对象改成了调用StringBuilder对象的run方法，其他都没有任何区别，
+这两段代码最终的执行结果是完全相同的。
+
+最后我们再来学习标准函数中的apply函数。apply函数和run函数也是极其类似的，都要在某个对象上调用，并且只接收一个Lambda参数，
+也会在Lambda表达式中提供调用对象的上下文，但是apply函数无法指定返回值，而是会自动返回调用对象本身
+val result = obj.apply {
+     // 这里是obj的上下文
+}
+结果 == OBJ
+
+val list = listOf("Apple", "Banana", "Orange", "Pear", "Grape")
+val result = StringBuilder().apply {
+    append("Start eating fruits.\n")
+    for (fruit in list) {
+        append(fruit).append("\n")
+    }
+    append("Ate all fruits.")
+}
+println（result.toString（））
+
+这时候调用的是返回后的StringBuilder对象的tostring 方法
+
+回想一下刚刚在最佳实践环节编写的启动Activity的代码：
+val intent = Intent(context, SecondActivity::class.java)
+intent.putExtra("param1", "data1")
+intent.putExtra("param2", "data2")
+context.startActivity（意图）
+
+显然这里的intent对象可以使用高阶函数进行简化
+val intent = Intent(context, SecondActivity::class.java).apply {
+    putExtra("param1", "data1")
+    putExtra("param2", "data2")
+}
+context.startActivity（意图）
+
+
