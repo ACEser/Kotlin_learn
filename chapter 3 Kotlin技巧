@@ -275,3 +275,50 @@ val intent = Intent(context, SecondActivity::class.java).apply {
 context.startActivity（意图）
 
 
+静态方法与单例类
+Kotlin提供了比静态方法更好用的语法特性，并且我们在上一节中已经学习过了，那就是单例类。
+将class替换为Object
+object Util {
+
+    fun doAction() {
+        println("do action")
+    }
+
+}
+如果我们不想让整个类里面的函数都变成静态方法，可以使用companion Object
+class Util {
+
+    fun doAction1() {
+        println("do action1")
+    }
+
+    companion object {
+
+        fun doAction2() {
+            println("do action2")
+        }
+
+    }
+
+}
+doAction2()方法可以直接使用Util.doAction2()的方式调用。 
+
+而如果我们给单例类或companion object中的方法加上@JvmStatic注解，那么Kotlin编译器就会将这些方法编译成真正的静态方法
+如果是在Kotlin代码中调用的话，那就很简单了，所有的顶层方法都可以在任何位置被直接调用，不用管包名路径，
+也不用创建实例，直接键入doSomething()即可
+class Util {
+
+    fun doAction1() {
+        println("do action1")
+    }
+
+    companion object {
+
+        @JvmStatic
+        fun doAction2() {
+            println("do action2")
+        }
+
+    }
+
+}
