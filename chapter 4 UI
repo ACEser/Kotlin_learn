@@ -1,0 +1,118 @@
+
+进度条
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    ...
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+  这个设置成横式的，如果没有下面这个风格指定的话，就是一个圆圈在转
+        style="?android:attr/progressBarStyleHorizontal"
+  这个最大值是为了可以在Activity中改变进度条的状态      
+  android：max=“100”
+        />
+
+</LinearLayout>
+
+  
+4.2.6　AlertDialog
+  AlertDialog可以在当前界面弹出一个对话框，这个对话框是置顶于所有界面元素之上的，能够屏蔽其他控件的交互能力
+class MainActivity : AppCompatActivity(), View.OnClickListener {
+   ...
+    override fun onClick(v: View?) {
+        when (v?.id) {
+            R.id.button -> {
+                AlertDialog.Builder(this).apply {
+                    setTitle("This is Dialog")
+                    setMessage("Something important.")
+                    setCancelable(false)
+                    setPositiveButton("OK") { dialog, which ->
+                    }
+                    setNegativeButton("Cancel") { dialog, which ->
+                    }
+                    show()
+                }
+            }
+        }
+    }
+
+}
+这里的builder就用上了之前的apply，就不用一直调用AlertDialog了
+
+然后是三种布局
+首先是Linear Layout 这个可以
+通过android:orientation属性指定了排列方向是vertical，如果指定的是horizontal，控件就会在水平方向上排列
+注意：
+如果LinearLayout的排列方向是horizontal，内部的控件就绝对不能将宽度指定为match_parent，
+否则，单独一个控件就会将整个水平方向占满，其他的控件就没有可放置的位置了
+（也就是指定什么布局，什么布局的内部组件的宽或者高不能是match parent，不然就是占满位置）
+
+android:gravity用于指定文字在控件中的对齐方式，而android:layout_gravity用于指定控件在布局中的对齐方式
+
+第二个布局是RelativeLayout
+它可以通过相对定位的方式让控件出现在布局的任何位置
+
+第三种是FrameLayout
+这种布局没有丰富的定位方式，所有的控件都会默认摆放在布局的左上角
+
+如果觉得上面的布局不好用还可以自建布局然后导入
+我们所用的所有控件都是直接或间接继承自View的，所用的所有布局都是直接或间接继承自ViewGroup的
+View是Android中最基本的一种UI组件，它可以在屏幕上绘制一块矩形区域，并能响应这块区域的各种事件，
+因此，我们使用的各种控件其实就是在View的基础上又添加了各自特有的功能。
+而ViewGroup则是一种特殊的View，它可以包含很多子View和子ViewGroup，是一个用于放置控件和布局的容器
+
+可以自己建一个xml布局文件，然后在原来有的xml中引入自己自己的布局
+比如引入的语法就是
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" >
+
+    <include layout="@layout/title" />
+
+</LinearLayout>
+  一行include就够了
+
+除了自建布局，还可以自建组件
+  比如标题栏中的返回按钮，其实不管是在哪一个Activity中，这个按钮的功能都是相同的，即销毁当前Activity。
+而如果在每一个Activity中都需要重新注册一遍返回按钮的点击事件，无疑会增加很多重复代码，这种情况最好是使用自定义控件的方式来解决。
+
+新建TitleLayout继承自LinearLayout，让它成为我们自定义的标题栏控件，代码如下所示
+class TitleLayout(context: Context, attrs: AttributeSet) : LinearLayout(context, attrs) {
+
+    init {
+        LayoutInflater.from(context).inflate(R.layout.title, this)
+    }
+
+}
+
+这里我们在TitleLayout的主构造函数中声明了Context和AttributeSet这两个参数，在布局中引入TitleLayout控件时就会调用这个构造函数
+然后在init结构体中需要对标题栏布局进行动态加载，这就要借助LayoutInflater来实现了。
+通过LayoutInflater的from()方法可以构建出一个LayoutInflater对象，
+然后调用inflate()方法就可以动态加载一个布局文件。inflate()方法接收两个参数：第一个参数是要加载的布局文件的id，
+这里我们传入R.layout.title；第二个参数是给加载好的布局再添加一个父布局，这里我们想要指定为TitleLayout，于是直接传入this。
+
+在原有的xml上添加自己的写的控件
+添加自定义控件和添加普通控件的方式基本是一样的，只不过在添加自定义控件的时候，我们需要指明控件的完整类名，包名在这里是不可以省略的。
+将组件注册事件：
+class TitleLayout(context: Context, attrs: AttributeSet) : LinearLayout(context, attrs) {
+
+    init {
+        LayoutInflater.from(context).inflate(R.layout.title, this)
+        titleBack.setOnClickListener {
+            val activity = context as Activity
+            activity.finish()
+        }
+        titleEdit.setOnClickListener {
+            Toast.makeText(context, "You clicked Edit button", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+}
+TitleLayout中接收的context参数实际上是一个Activity的实例，在返回按钮的点击事件里，
+我们要先将它转换成Activity类型，然后再调用finish()方法销毁当前的Activity。
+Kotlin中的类型强制转换使用的关键字是as，由于是第一次用到，所以这里单独讲解一下。
