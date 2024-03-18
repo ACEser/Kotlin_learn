@@ -116,3 +116,455 @@ class TitleLayout(context: Context, attrs: AttributeSet) : LinearLayout(context,
 TitleLayout中接收的context参数实际上是一个Activity的实例，在返回按钮的点击事件里，
 我们要先将它转换成Activity类型，然后再调用finish()方法销毁当前的Activity。
 Kotlin中的类型强制转换使用的关键字是as，由于是第一次用到，所以这里单独讲解一下。
+
+4.5　最常用和最难用的控件：ListView
+
+class MainActivity : AppCompatActivity() {
+
+    private val data = listOf("Apple", "Banana", "Orange", "Watermelon",
+        "Pear", "Grape", "Pineapple", "Strawberry", "Cherry", "Mango",
+        "Apple", "Banana", "Orange", "Watermelon", "Pear", "Grape",
+        "Pineapple", "Strawberry", "Cherry", "Mango")
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        val adapter = ArrayAdapter<String>(this,android.R.layout.simple_list_item_1,data)
+        listView.adapter = adapter
+    }
+
+}
+集合中的数据是无法直接传递给ListView的，我们还需要借助适配器来完成。
+Android中提供了很多适配器的实现类，其中我认为最好用的就是ArrayAdapter
+ArrayAdapter有多个构造函数的重载，你应该根据实际情况选择最合适的一种。
+
+由于我们这里提供的数据都是字符串，
+因此将ArrayAdapter的泛型指定为String，
+然后在ArrayAdapter的构造函数中依次传入Activity的实例、ListView子项布局的id，以及数据源
+
+最后，还需要调用ListView的setAdapter()方法，将构建好的适配器对象传递进去，这样ListView和数据之间的关联就建立完成了。
+
+当然，我们还可以自定义ListView ，也是用的ArrayAdapter
+class FruitAdapter(activity: Activity, val resourceId: Int, data: List<Fruit>) :
+        ArrayAdapter<Fruit>(activity, resourceId, data) {
+
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        val view = LayoutInflater.from(context).inflate(resourceId, parent, false)
+        val fruitImage: ImageView = view.findViewById(R.id.fruitImage)
+        val fruitName: TextView = view.findViewById(R.id.fruitName)
+        val fruit = getItem(position) // 获取当前项的Fruit实例
+        if (fruit != null) {
+            fruitImage.setImageResource(fruit.imageId)
+            fruitName.text = fruit.name
+        }
+        return view
+    }
+
+}
+
+在getView()方法中，首先使用LayoutInflater来为这个子项加载我们传入的布局。
+LayoutInflater的inflate()方法接收3个参数，
+前两个参数我们已经知道是什么意思了，第三个参数指定成false，
+表示只让我们在父布局中声明的layout属性生效，
+但不会为这个View添加父布局。因为一旦View有了父布局之后，它就不能再添加到ListView中了
+
+我们继续往下看，接下来调用View的findViewById()方法分别获取到ImageView和TextView的实例，
+然后通过getItem()方法得到当前项的Fruit实例，
+并分别调用它们的setImageResource()和setText()方法设置显示的图片和文字，
+最后将布局返回，这样我们自定义的适配器就完成了。
+
+4.5.3　提升ListView的运行效率
+getView()方法中还有一个convertView参数，
+这个参数用于将之前加载好的布局进行缓存，以便之后进行重用，我们可以借助这个参数来进行性能优化
+class FruitAdapter(activity: Activity, val resourceId: Int, data: List<Fruit>) :
+        ArrayAdapter<Fruit>(activity, resourceId, data) {
+
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        val view: View
+        if (convertView == null) {
+            view = LayoutInflater.from(context).inflate(resourceId, parent, false)
+        } else {
+            view = convertView
+        }
+        val fruitImage: ImageView = view.findViewById(R.id.fruitImage)
+        val fruitName: TextView = view.findViewById(R.id.fruitName)
+        val fruit = getItem(position) // 获取当前项的Fruit实例
+        if (fruit != null) {
+            fruitImage.setImageResource(fruit.imageId)
+            fruitName.text = fruit.name
+        }
+        return view
+    }
+
+}
+可以看到，现在我们在getView()方法中进行了判断：
+如果convertView为null，则使用LayoutInflater去加载布局；如果不为null，则直接对convertView进行重用
+
+不过，目前我们的这份代码还是可以继续优化的，虽然现在已经不会再重复去加载布局，
+但是每次在getView()方法中仍然会调用View的findViewById()方法来获取一次控件的实例。
+我们可以借助一个ViewHolder来对这部分性能进行优化
+class FruitAdapter(activity: Activity, val resourceId: Int, data: List<Fruit>) :
+        ArrayAdapter<Fruit>(activity, resourceId, data) {
+
+    inner class ViewHolder(val fruitImage: ImageView, val fruitName: TextView)
+
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        val view: View
+        val viewHolder: ViewHolder
+        if (convertView == null) {
+            view = LayoutInflater.from(context).inflate(resourceId, parent, false)
+            val fruitImage: ImageView = view.findViewById(R.id.fruitImage)
+            val fruitName: TextView = view.findViewById(R.id.fruitName)
+            viewHolder = ViewHolder(fruitImage, fruitName)
+            view.tag = viewHolder
+        } else {
+            view = convertView
+            viewHolder = view.tag as ViewHolder
+        }
+
+        val fruit = getItem(position) // 获取当前项的Fruit实例
+        if (fruit != null) {
+            viewHolder.fruitImage.setImageResource(fruit.imageId)
+            viewHolder.fruitName.text = fruit.name
+        }
+        return view
+    }
+
+}
+
+我们新增了一个内部类ViewHolder，用于对ImageView和TextView的控件实例进行缓存，
+Kotlin中使用inner class关键字来定义内部类。当convertView为null的时候，
+创建一个ViewHolder对象，并将控件的实例存放在ViewHolder里，然后调用View的setTag()方法，将ViewHolder对象存储在View中
+
+
+4.5.4　ListView的点击事件
+class MainActivity : AppCompatActivity() {
+
+    private val fruitList = ArrayList<Fruit>()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        initFruits() // 初始化水果数据
+        val adapter = FruitAdapter(this, R.layout.fruit_item, fruitList)
+        listView.adapter = adapter
+        listView.setOnItemClickListener { parent, view, position, id ->
+            val fruit = fruitList[position]
+            Toast.makeText(this, fruit.name, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    ...
+
+}
+
+另外你会发现，虽然这里我们必须在Lambda表达式中声明4个参数，
+但实际上却只用到了position这一个参数而已。针对这种情况，
+Kotlin允许我们将没有用到的参数使用下划线来替代，因此下面这种写法也是合法且更加推荐的
+listView.setOnItemClickListener { _, _, position, _ ->
+    val fruit = fruitList[position]
+    Toast.makeText(this, fruit.name, Toast.LENGTH_SHORT).show()
+}
+
+4.6　更强大的滚动控件：RecyclerView
+
+
+除了LinearLayoutManager之外，
+RecyclerView还给我们提供了GridLayoutManager和StaggeredGridLayoutManager这两种内置的布局排列方式。
+GridLayoutManager可以用于实现网格布局，StaggeredGridLayoutManager可以用于实现瀑布流布局
+
+首先，在onCreate()方法中，我们创建了一个StaggeredGridLayoutManager的实例。StaggeredGridLayoutManager的构造函数接收两个参数：
+第一个参数用于指定布局的列数，传入3表示会把布局分为3列；
+第二个参数用于指定布局的排列方向，传入StaggeredGridLayoutManager.VERTICAL表示会让布局纵向排列
+class MainActivity : AppCompatActivity() {
+
+    private val fruitList = ArrayList<Fruit>()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        initFruits() // 初始化水果数据
+        val layoutManager = StaggeredGridLayoutManager(3,
+        StaggeredGridLayoutManager.VERTICAL)
+        recyclerView.layoutManager = layoutManager
+        val adapter = FruitAdapter(fruitList)
+        recyclerView.adapter = adapter
+    }
+
+    private fun initFruits() {
+        ……
+    }
+
+    private fun getRandomLengthString(str: String): String {
+        val n =  (1..20).random()
+        val builder = StringBuilder()
+        repeat(n) {
+            builder.append(str)
+        }
+        return builder.toString()
+    }
+
+}
+
+4.6.3　RecyclerView的点击事件
+不过不同于ListView的是，RecyclerView并没有提供类似于setOnItemClickListener()这样的注册监听器方法，
+而是需要我们自己给子项具体的View去注册点击事件。这相比于ListView来说，实现起来要复杂一些。
+
+class FruitAdapter(val fruitList: List<Fruit>) :
+        RecyclerView.Adapter<FruitAdapter.ViewHolder>() {
+    ...
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(parent.context)
+        .inflate(R.layout.fruit_item, parent, false)
+        val viewHolder = ViewHolder(view)
+        viewHolder.itemView.setOnClickListener {
+            val position = viewHolder.adapterPosition
+            val fruit = fruitList[position]
+            Toast.makeText(parent.context, "you clicked view ${fruit.name}",
+                Toast.LENGTH_SHORT).show()
+        }
+        viewHolder.fruitImage.setOnClickListener {
+            val position = viewHolder.adapterPosition
+            val fruit = fruitList[position]
+            Toast.makeText(parent.context, "you clicked image ${fruit.name}",
+                Toast.LENGTH_SHORT).show()
+        }
+        return viewHolder
+    }
+    ...
+}
+可以看到，这里我们是在onCreateViewHolder()方法中注册点击事件。
+上述代码分别为最外层布局和ImageView都注册了点击事件，itemView表示的就是最外层布局
+RecyclerView的强大之处也在于此，它可以轻松实现子项中任意控件或布局的点击事件
+
+
+4.7.2　编写精美的聊天界面
+
+定义消息的实体类，新建Msg
+class Msg(val content: String, val type: Int) {
+    companion object {
+        const val TYPE_RECEIVED = 0
+        const val TYPE_SENT = 1
+    }
+}
+Msg类中只有两个字段：content表示消息的内容，type表示消息的类型。
+其中消息类型有两个值可选：TYPE_RECEIVED表示这是一条收到的消息，TYPE_SENT表示这是一条发出的消息。
+这里我们将TYPE_RECEIVED和TYPE_SENT定义成了常量，定义常量的关键字是const，
+注意只有在单例类、companion object或顶层方法中才可以使用const关键字。
+
+class MsgAdapter(val msgList: List<Msg>) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    inner class LeftViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val leftMsg: TextView = view.findViewById(R.id.leftMsg)
+    }
+
+    inner class RightViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val rightMsg: TextView = view.findViewById(R.id.rightMsg)
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        val msg = msgList[position]
+        return msg.type
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = if (viewType ==
+             Msg.TYPE_RECEIVED) {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.msg_left_item,
+                       parent, false)
+        LeftViewHolder(view)
+    } else {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.msg_right_item,
+                       parent, false)
+        RightViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val msg = msgList[position]
+        when (holder) {
+            is LeftViewHolder -> holder.leftMsg.text = msg.content
+            is RightViewHolder -> holder.rightMsg.text = msg.content
+            else -> throw IllegalArgumentException()
+        }
+    }
+
+    override fun getItemCount() = msgList.size
+
+}
+上述代码中用到了一个新的知识点：根据不同的viewType创建不同的界面。
+首先我们定义了LeftViewHolder和RightViewHolder这两个ViewHolder，分别用于缓存msg_left_item.xml和msg_right_item.xml布局中的控件
+然后要重写getItemViewType()方法，并在这个方法中返回当前position对应的消息类型。
+接下来的代码你应该就比较熟悉了，和我们之前学习的RecyclerView用法是比较相似的，
+只是要在onCreateViewHolder()方法中根据不同的viewType来加载不同的布局并创建不同的ViewHolder。
+然后在onBindViewHolder()方法中判断ViewHolder的类型：如果是LeftViewHolder，
+就将内容显示到左边的消息布局；如果是RightViewHolder，就将内容显示到右边的消息布局。
+
+最后修改MainActivity中的代码，为RecyclerView初始化一些数据，并给发送按钮加入事件响应
+class MainActivity : AppCompatActivity(), View.OnClickListener {
+
+    private val msgList = ArrayList<Msg>()
+
+    private var adapter: MsgAdapter? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        initMsg()
+        val layoutManager = LinearLayoutManager(this)
+        recyclerView.layoutManager = layoutManager
+        adapter = MsgAdapter(msgList)
+        recyclerView.adapter = adapter
+        send.setOnClickListener(this)
+    }
+
+    override fun onClick(v: View?) {
+        when (v) {
+            send -> {
+                val content = inputText.text.toString()
+                if (content.isNotEmpty()) {
+                    val msg = Msg(content, Msg.TYPE_SENT)
+                    msgList.add(msg)
+                    adapter?.notifyItemInserted(msgList.size - 1) // 当有新消息时，
+                        刷新RecyclerView中的显示
+                    recyclerView.scrollToPosition(msgList.size - 1)  // 将RecyclerView
+                        定位到最后一行
+                    inputText.setText("") // 清空输入框中的内容
+                }
+            }
+        }
+    }
+
+    private fun initMsg() {
+        val msg1 = Msg("Hello guy.", Msg.TYPE_RECEIVED)
+        msgList.add(msg1)
+        val msg2 = Msg("Hello. Who is that?", Msg.TYPE_SENT)
+        msgList.add(msg2)
+        val msg3 = Msg("This is Tom. Nice talking to you. ", Msg.TYPE_RECEIVED)
+        msgList.add(msg3)
+    }
+
+}
+我们先在initMsg()方法中初始化了几条数据用于在RecyclerView中显示，
+接下来按照标准的方式构建RecyclerView，给它指定一个LayoutManager和一个适配器。
+然后在发送按钮的点击事件里获取了EditText中的内容，如果内容不为空字符串，则创建一个新的Msg对象并添加到msgList列表中去
+之后又调用了适配器的notifyItemInserted()方法，用于通知列表有新的数据插入，这样新增的一条消息才能够在RecyclerView中显示出来
+
+
+4.8　Kotlin课堂：延迟初始化和密封类
+比如，如果你的类中存在很多全局变量实例，为了保证它们能够满足Kotlin的空指针检查语法标准，
+你不得不做许多的非空判断保护才行，即使你非常确定它们不会为空。
+class MainActivity : AppCompatActivity(), View.OnClickListener {
+
+    private var adapter: MsgAdapter? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        ...
+        adapter = MsgAdapter(msgList)
+        ...
+    }
+
+    override fun onClick(v: View?) {
+        ...
+        adapter?.notifyItemInserted(msgList.size - 1)
+        ...
+    }
+
+}
+这里我们将adapter设置为了全局变量，
+但是它的初始化工作是在onCreate()方法中进行的，因此不得不先将adapter赋值为null，同时把它的类型声明成MsgAdapter?。
+虽然我们会在onCreate()方法中对adapter进行初始化，同时能确保onClick()方法必然在onCreate()方法之后才会调用，
+但是我们在onClick()方法中调用adapter的任何方法时仍然要进行判空处理才行，否则编译肯定无法通过。
+延迟初始化使用的是lateinit关键字
+它可以告诉Kotlin编译器，我会在晚些时候对这个变量进行初始化，这样就不用在一开始的时候将它赋值为null了。
+
+接下来我们就使用延迟初始化的方式对上述代码进行优化，如下所示：
+class MainActivity : AppCompatActivity(), View.OnClickListener {
+
+    private lateinit var adapter: MsgAdapter
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        ...
+        adapter = MsgAdapter(msgList)
+        ...
+    }
+
+    override fun onClick(v: View?) {
+        ...
+        adapter.notifyItemInserted(msgList.size - 1)
+        ...
+    }
+当然，使用lateinit关键字也不是没有任何风险，如果我们在adapter变量还没有初始化的情况下就直接使用它，
+那么程序就一定会崩溃，并且抛出一个UninitializedPropertyAccessException异常
+另外，我们还可以通过代码来判断一个全局变量是否已经完成了初始化，这样在某些时候能够有效地避免重复对某一个变量进行初始化操作
+class MainActivity : AppCompatActivity(), View.OnClickListener {
+
+    private lateinit var adapter: MsgAdapter
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        ...
+这里判断：
+        if (!::adapter.isInitialized) {
+            adapter = MsgAdapter(msgList)
+        }
+        ...
+    }
+
+}
+
+}
+具体语法就是这样，::adapter.isInitialized可用于判断adapter变量是否已经初始化
+
+4.8.2　使用密封类优化代码
+由于密封类通常可以结合RecyclerView适配器中的ViewHolder一起使用，因此我们就正好借这个机会在本节学习一下它的用法
+当然，这种为了满足编译器的要求而编写无用条件分支的情况不仅在Kotlin当中存在，
+在Java或者是其他编程语言当中也普遍存在。不过好消息是，Kotlin的密封类可以很好地解决这个问题
+密封类的关键字是sealed class
+sealed class Result
+class Success(val msg: String) : Result()
+class Failure(val error: Exception) : Result()
+
+可以看到，代码并没有什么太大的变化，只是将interface关键字改成了sealed class。
+另外，由于密封类是一个可继承的类，因此在继承它的时候需要在后面加上一对括号
+那么改成密封类之后有什么好处呢？你会发现现在getResultMsg()方法中的else条件已经不再需要了
+fun getResultMsg(result: Result) = when (result) {
+    is Success -> result.msg
+    is Failure -> "Error is ${result.error.message}"
+}
+为什么这里去掉了else条件仍然能编译通过呢？这是因为当在when语句中传入一个密封类变量作为条件时，
+Kotlin编译器会自动检查该密封类有哪些子类，并强制要求你将每一个子类所对应的条件全部处理。
+这样就可以保证，即使没有编写else条件，也不可能会出现漏写条件分支的情况。
+而如果我们现在新增一个Unknown类，并也让它继承自Result，此时getResultMsg()方法就一定会报错，
+必须增加一个Unknown的条件分支才能让代码编译通过。
+
+另外再多说一句，密封类及其所有子类只能定义在同一个文件的顶层位置，不能嵌套在其他类中，这是被密封类底层的实现机制所限制的。
+
+观看MsgAdapter现在的代码，你会发现onBindViewHolder()方法中就存在一个没有实际作用的else条件，只是抛出了一个异常而已
+对于这部分代码，我们就可以借助密封类的特性来进行优化。
+首先删除MsgAdapter中的LeftViewHolder和RightViewHolder，然后新建一个MsgViewHolder.kt文件
+
+sealed class MsgViewHolder(view: View) : RecyclerView.ViewHolder(view)
+
+class LeftViewHolder(view: View) : MsgViewHolder(view) {
+    val leftMsg: TextView = view.findViewById(R.id.leftMsg)
+}
+这里我们定义了一个密封类MsgViewHolder，并让它继承自RecyclerView.ViewHolder，
+然后让LeftViewHolder和RightViewHolder继承自MsgViewHolder。
+这样就相当于密封类MsgViewHolder只有两个已知子类，因此在when语句中只要处理这两种情况的条件分支即可。
+
+
+现在修改MsgAdapter中的代码
+class MsgAdapter(val msgList: List<Msg>) : RecyclerView.Adapter<MsgViewHolder>() {
+
+    ...
+
+    override fun onBindViewHolder(holder: MsgViewHolder, position: Int) {
+        val msg = msgList[position]
+        when (holder) {
+            is LeftViewHolder -> holder.leftMsg.text = msg.content
+            is RightViewHolder -> holder.rightMsg.text = msg.content
+         }
+    }
+    ...
+}
+这里我们将RecyclerView.Adapter的泛型指定成刚刚定义的密封类MsgViewHolder，
+这样onBindViewHolder()方法传入的参数就变成了MsgViewHolder。
+然后我们只要在when语句当中处理LeftViewHolder和RightViewHolder这两种情况就可以了，那个讨厌的else终于不再需要了
