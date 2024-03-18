@@ -272,8 +272,251 @@ tartService()和stopService()方法都是定义在Context类中的，
 所以我们在Activity里可以直接调用这两个方法。
 另外，Service也可以自我停止运行，只需要在Service内部调用stopSelf()方法即可。
 
-那么接下来又有一个问题需要思考了，
-我们如何才能证实Service已经成功启动或者停止了呢？
-最简单的方法就是在MyService的几个方法中加入打印日志，如下所示：
 
 10.3.3　Activity和Service进行通信
+在上一小节中，我们学习了启动和停止Service的方法。不知道你有没有发现，
+虽然Service是在Activity里启动的，但是在启动了Service之后，Activity与Service基本就没有什么关系了
+
+那么可不可以让Activity和Service的关系更紧密一些呢？例如在Activity中指挥Service去干什么，Service就去干什么。
+当然可以，这就需要借助我们刚刚忽略的onBind()方法了。
+
+比如说，目前我们希望在MyService里提供一个下载功能，
+然后在Activity中可以决定何时开始下载，以及随时查看下载进度。
+实现这个功能的思路是创建一个专门的Binder对象来对下载功能进行管理
+class MyService : Service() {
+
+    private val mBinder = DownloadBinder()
+
+    class DownloadBinder : Binder() {
+
+        fun startDownload() {
+            Log.d("MyService", "startDownload executed")
+        }
+
+        fun getProgress(): Int {
+            Log.d("MyService", "getProgress executed")
+            return 0
+        }
+
+    }
+
+    override fun onBind(intent: Intent): IBinder {
+        return mBinder
+    }
+    ...
+}
+
+当一个Activity和Service绑定了之后，就可以调用该Service里的Binder提供的方法了
+class MainActivity : AppCompatActivity() {
+
+    lateinit var downloadBinder: MyService.DownloadBinder
+
+    private val connection = object : ServiceConnection {
+
+        override fun onServiceConnected(name: ComponentName, service: IBinder) {
+这行代码的作用是将 service 对象从 IBinder 类型转换为 MyService.DownloadBinder 类型。
+service 是 onServiceConnected 方法中的参数，
+这个参数是当 Android 系统成功绑定到服务时传递给客户端的一个接口（IBinder）。
+通过将 IBinder 强制转换为更具体的 MyService.DownloadBinder 类型，你可以调用这个类中定义的这些方法。
+            downloadBinder = service as MyService.DownloadBinder
+            downloadBinder.startDownload()
+            downloadBinder.getProgress()
+        }
+
+        override fun onServiceDisconnected(name: ComponentName) {
+        }
+
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        ...
+        bindServiceBtn.setOnClickListener {
+            val intent = Intent(this, MyService::class.java)
+            bindService(intent, connection, Context.BIND_AUTO_CREATE) // 绑定Service
+        }
+        unbindServiceBtn.setOnClickListener {
+            unbindService(connection) // 解绑Service
+        }
+    }
+
+}
+
+在onServiceConnected()方法中，
+我们又通过向下转型得到了DownloadBinder的实例，有了这个实例，Activity和Service之间的关系就变得非常紧密了。
+现在我们可以在Activity中根据具体的场景来调用DownloadBinder中的任何public方法，
+即实现了指挥Service干什么Service就去干什么的功能
+
+现在Activity和Service其实还没进行绑定呢，这个功能是在“Bind Service”按钮的点击事件里完成的
+bindService()方法接收3个参数，第一个参数就是刚刚构建出的Intent对象，
+第二个参数是前面创建出的ServiceConnection的实例，
+第三个参数则是一个标志位，这里传入BIND_AUTO_CREATE表示在Activity和Service进行绑定后自动创建Service。
+这会使得MyService中的onCreate()方法得到执行，但onStartCommand()方法不会执行。
+
+如果我们想解除Activity和Service之间的绑定该怎么办呢？调用一下unbindService()方法就可以了
+
+10.4　Service的生命周期
+Service也有自己的生命周期，前面我们使用到的onCreate()、onStartCommand()、onBind()和onDestroy()等方法都是在Service的生命周期内可能回调的方法。
+一旦在项目的任何位置调用了Context的startService()方法，相应的Service就会启动，并回调onStartCommand()方法
+
+如果这个Service之前还没有创建过，onCreate()方法会先于onStartCommand()方法执行
+
+Service启动了之后会一直保持运行状态，直到stopService()或stopSelf()方法被调用，或者被系统回收。
+注意，虽然每调用一次startService()方法，onStartCommand()就会执行一次，但实际上每个Service只会存在一个实例
+
+另外，还可以调用Context的bindService()来获取一个Service的持久连接，这时就会回调Service中的onBind()方法
+类似地，如果这个Service之前还没有创建过，onCreate()方法会先于onBind()方法执行
+
+当调用了startService()方法后，再去调用stopService()方法。这时Service中的onDestroy()方法就会执行，表示Service已经销毁了
+但是需要注意，我们是完全有可能对一个Service既调用了startService()方法，又调用了bindService()方法的，在这种情况下该如何让Service销毁呢？
+根据Android系统的机制，一个Service只要被启动或者被绑定了之后，就会处于运行状态，
+必须要让以上两种条件同时不满足，Service才能被销毁。
+所以，这种情况下要同时调用stopService()和unbindService()方法，onDestroy()方法才会执行。
+
+10.5　Service的更多技巧
+10.5.1　使用前台Service
+而如果你希望Service能够一直保持运行状态，就可以考虑使用前台Service。
+前台Service和普通Service最大的区别就在于，
+它一直会有一个正在运行的图标在系统的状态栏显示，下拉状态栏后可以看到更加详细的信息，非常类似于通知的效果
+
+由于状态栏中一直有一个正在运行的图标，相当于我们的应用以另外一种形式保持在前台可见状态，所以系统不会倾向于回收前台Service
+另外，用户也可以通过下拉状态栏清楚地知道当前什么应用正在运行，因此也不存在某些恶意应用长期在后台偷偷占用手机资源的情况。
+
+那么我们就来看一下如何才能创建一个前台Service吧
+class MyService : Service() {
+    ...
+    override fun onCreate() {
+        super.onCreate()
+        Log.d("MyService", "onCreate executed")
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as
+                NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel("my_service", "前台Service通知",
+                    NotificationManager.IMPORTANCE_DEFAULT)
+            manager.createNotificationChannel(channel)
+        }
+        val intent = Intent(this, MainActivity::class.java)
+        val pi = PendingIntent.getActivity(this, 0, intent, 0)
+        val notification = NotificationCompat.Builder(this, "my_service")
+            .setContentTitle("This is content title")
+            .setContentText("This is content text")
+            .setSmallIcon(R.drawable.small_icon)
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.drawable.large_icon))
+            .setContentIntent(pi)
+            .build()
+        startForeground(1, notification)
+    }
+    ...
+}
+
+这次在构建Notification对象后并没有使用NotificationManager将通知显示出来，而是调用了startForeground()方法。
+这个方法接收两个参数：第一个参数是通知的id，类似于notify()方法的第一个参数；第二个参数则是构建的Notification对象。
+调用startForeground()方法后就会让MyService变成一个前台Service，并在系统状态栏显示出来。
+
+10.5.2　使用IntentService
+需要用到Android多线程编程的技术了，
+我们应该在Service的每个具体的方法里开启一个子线程，然后在这里处理那些耗时的逻辑
+
+class MyService : Service() {
+    ...
+    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+        thread {
+            // 处理具体的逻辑
+        }
+        return super.onStartCommand(intent, flags, startId)
+    }
+}
+但是，这种Service一旦启动，就会一直处于运行状态，
+必须调用stopService()或stopSelf()方法，
+或者被系统回收，Service才会停止。
+所以，如果想要实现让一个Service在执行完毕后自动停止的功能，就可以这样写：
+class MyService : Service() {
+    ...
+    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+        thread {
+            // 处理具体的逻辑
+            stopSelf()
+        }
+        return super.onStartCommand(intent, flags, startId)
+    }
+}
+
+为了可以简单地创建一个异步的、会自动停止的Service，Android专门提供了一个IntentService类，
+这个类就很好地解决了前面所提到的两种尴尬，下面我们就来看一下它的用法。
+
+class MyIntentService : IntentService("MyIntentService") {
+
+    override fun onHandleIntent(intent: Intent?) {
+        // 打印当前线程的id
+        Log.d("MyIntentService", "Thread id is ${Thread.currentThread().name}")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("MyIntentService", "onDestroy executed")
+    }
+
+}
+然后要在子类中实现onHandleIntent()这个抽象方法，
+这个方法中可以处理一些耗时的逻辑，而不用担心ANR的问题，因为这个方法已经是在子线程中运行的了
+也就是你不用管这个进程的原因
+
+
+10.6　 Kotlin课堂：泛型的高级特性
+10.6.1　对泛型进行实化
+那么具体该怎么写才能将泛型实化呢？
+首先，该函数必须是内联函数才行，也就是要用inline关键字来修饰该函数。
+其次，在声明泛型的地方必须加上reified关键字来表示该泛型要进行实化。
+
+上述函数中的泛型T就是一个被实化的泛型，
+因为它满足了内联函数和reified关键字这两个前提条件。那么借助泛型实化，到底可以实现什么样的效果呢？
+inline fun <reified T> getGenericType() = T::class.java
+
+虽然只有一行代码，但是这里却实现了一个Java中完全不可能实现的功能：
+getGenericType()函数直接返回了当前指定泛型的实际类型。
+T.class这样的语法在Java中是不合法的，
+而在Kotlin中，借助泛型实化功能就可以使用T::class.java这样的语法了。
+
+10.6.2　泛型实化的应用
+泛型实化功能允许我们在泛型函数当中获得泛型的实际类型，
+这也就使得类似于a is T、T::class.java这样的语法成为了可能
+
+有没有觉得TestActivity::class.java这样的语法很难受呢？
+当然，如果在没有更好选择的情况下，这种写法也是可以忍受的，但是Kotlin的泛型实化功能使得我们拥有了更好的选择。
+
+新建一个reified.kt文件，然后在里面编写如下代码：
+inline fun <reified T> startActivity(context: Context) {
+    val intent = Intent(context, T::class.java)
+    context.startActivity(intent)
+}
+
+接下来就是神奇的地方了，Intent接收的第二个参数本来应该是一个具体Activity的Class类型，
+但由于现在T已经是一个被实化的泛型了，
+因此这里我们可以直接传入T::class.java。最后调用Context的startActivity()方法来完成Activity的启动
+
+现在，如果我们想要启动TestActivity，只需要这样写就可以了：
+startActivity<TestActivity>(context)
+Kotlin将能够识别出指定泛型的实际类型，并启动相应的Activity。
+怎么样，是不是觉得代码瞬间精简了好多？这就是泛型实化所带来的神奇功能
+
+因为通常在启用Activity的时候还可能会使用Intent附带一些参数
+而经过刚才的封装之后，我们就无法进行传参了。
+
+这个问题也不难解决，只需要借助之前在第6章学习的高阶函数就可以轻松搞定。
+回到reified.kt文件当中，这里添加一个新的startActivity()函数重载
+inline fun <reified T> startActivity(context: Context, block: Intent.() -> Unit) {
+    val intent = Intent(context, T::class.java)
+    intent.block()
+    context.startActivity(intent)
+}
+
+可以看到，这次的startActivity()函数中增加了一个函数类型参数，并且它的函数类型是定义在Intent类当中的
+在创建完Intent的实例之后，随即调用该函数类型参数，并把Intent的实例传入，
+这样调用startActivity()函数的时候就可以在Lambda表达式中为Intent传递参数了
+
+startActivity<TestActivity>(context) {
+    putExtra("param1", "data")
+    putExtra("param2", 123)
+}
+
+不得不说，这种启动Activity的代码写起来实在是太舒服了，
+泛型实化和高阶函数使这种语法结构成为了可能，感谢Kotlin提供了如此多优秀的语言特性。
