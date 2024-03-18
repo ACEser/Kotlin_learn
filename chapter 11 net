@@ -1,0 +1,381 @@
+本章主要讲述如何在手机端使用HTTP和服务器进行网络交互，并对服务器返回的数据进行解析，
+这也是Android中最常使用到的网络技术
+
+11.1　WebView的用法
+有时候我们可能会碰到一些比较特殊的需求，比如说在应用程序里展示一些网页。
+相信每个人都知道，加载和显示网页通常是浏览器的任务，
+但是需求里又明确指出，不允许打开系统浏览器
+
+不用担心，Android早就考虑到了这种需求，并提供了一个WebView控件，
+借助它我们就可以在自己的应用程序里嵌入一个浏览器
+
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        webView.settings.javaScriptEnabled=true
+        webView.webViewClient = WebViewClient()
+        webView.loadUrl("https://www.baidu.com")
+    }
+
+}
+
+另外还需要注意，由于本程序使用到了网络功能，
+而访问网络是需要声明权限的，因此我们还得修改AndroidManifest.xml文件
+
+11.2　使用HTTP访问网络
+如果说真的要去深入分析HTTP，可能需要花费整整一本书的篇幅。这里我当然不会这么干，
+因为毕竟你是跟着我学习Android开发的，而不是网站开发。
+对于HTTP，你只需要稍微了解一些就足够了，它的工作原理特别简单，
+就是客户端向服务器发出一条HTTP请求，服务器收到请求之后会返回一些数据给客户端，
+然后客户端再对这些数据进行解析和处理就可以了
+
+简单来说，WebView已经在后台帮我们处理好了发送HTTP请求、接收服务器响应、解析返回数据，
+以及最终的页面展示这几步工作，
+只不过它封装得实在是太好了，反而使得我们不能那么直观地看出HTTP到底是如何工作的
+
+11.2.1　使用HttpURLConnection
+在Android 6.0系统中，HttpClient的功能被完全移除了，标志着此功能被正式弃用，
+因此本小节我们就学习一下现在官方建议使用的HttpURLConnection的用法。
+
+val url = URL("https://www.baidu.com")
+val connection = url.openConnection() as HttpURLConnection
+
+在得到了HttpURLConnection的实例之后，我们可以设置一下HTTP请求所使用的方法。
+常用的方法主要有两个：GET和POST。GET表示希望从服务器那里获取数据，
+而POST则表示希望提交数据给服务器
+connection.requestMethod = "GET"
+  
+接下来就可以进行一些自由的定制了，比如设置连接超时、读取超时的毫秒数，
+以及服务器希望得到的一些消息头等
+
+最后可以调用disconnect()方法将这个HTTP连接关闭：
+下面就让我们通过一个具体的例子来真正体验一下HttpURLConnection的用法
+
+注意，这里我们使用了一个新的控件：ScrollView。
+  它是用来做什么的呢？由于手机屏幕的空间一般比较小，有些时候过多的内容一屏是显示不下的，
+  借助ScrollView控件，我们就可以以滚动的形式查看屏幕外的内容
+
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        sendRequestBtn.setOnClickListener {
+            sendRequestWithHttpURLConnection()
+        }
+    }
+
+    private fun sendRequestWithHttpURLConnection() {
+        // 开启线程发起网络请求
+        thread {
+            var connection: HttpURLConnection? = null
+            try {
+                val response = StringBuilder()
+                val url = URL("https://www.baidu.com")
+                connection = url.openConnection() as HttpURLConnection
+                connection.connectTimeout = 8000
+                connection.readTimeout = 8000
+                val input = connection.inputStream
+                // 下面对获取到的输入流进行读取
+                val reader = BufferedReader(InputStreamReader(input))
+                reader.use {
+                    reader.forEachLine {
+                        response.append(it)
+                    }
+                }
+                showResponse(response.toString())
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                connection?.disconnect()
+            }
+        }
+    }
+
+    private fun showResponse(response: String) {
+        runOnUiThread {
+            // 在这里进行UI操作，将结果显示到界面上
+            responseText.text = response
+        }
+    }
+}
+
+那么这里为什么要用这个runOnUiThread()方法呢？别忘了，
+Android是不允许在子线程中进行UI操作的。
+我们在10.2.3小节中学习了异步消息处理机制的工作原理，
+而runOnUiThread()方法其实就是对异步消息处理机制进行了一层封装，
+它背后的工作原理和10.2.3小节中所介绍的内容是一模一样的
+
+那么如果想要提交数据给服务器应该怎么办呢？其实也不复杂，
+只需要将HTTP请求的方法改成POST，并在获取输入流之前把要提交的数据写出即可。
+注意，每条数据都要以键值对的形式存在，数据与数据之间用“&”符号隔开
+
+11.2.2　使用OkHttp
+事实上在开源盛行的今天，有许多出色的网络通信库都可以替代原生的HttpURLConnection，
+而其中OkHttp无疑是做得最出色的一个。
+
+在使用OkHttp之前，我们需要先在项目中添加OkHttp库的依赖。编辑app/build.gradle文件
+dependencies {
+    ...
+    implementation 'com.squareup.okhttp3:okhttp:4.1.0'
+}
+其中4.1.0是我写本书时OkHttp的最新版本，
+  你可以访问OkHttp的项目主页，查看当前最新的版本是多少。
+
+之后调用OkHttpClient的newCall()方法来创建一个Call对象，
+并调用它的execute()方法来发送请求并获取服务器返回的数据
+
+之后调用OkHttpClient的newCall()方法来创建一个Call对象，
+并调用它的execute()方法来发送请求并获取服务器返回的数据
+val response = client.newCall(request).execute()
+
+  Response对象就是服务器返回的数据了，我们可以使用如下写法来得到返回的具体内容：
+val responseData = response.body?.string()
+
+  如果是发起一条POST请求，会比GET请求稍微复杂一点，我们需要先构建一个Request Body对象来存放待提交的参数
+val requestBody = FormBody.Builder()
+        .add("username", "admin")
+        .add("password", "123456")
+        .build()
+
+然后在Request.Builder中调用一下post()方法，并将RequestBody对象传入：
+val request = Request.Builder()
+        .url("https://www.baidu.com")
+        .post(requestBody)
+        .build()
+  
+接下来的操作就和GET请求一样了，调用execute()方法来发送请求并获取服务器返回的数据即可。
+
+用OKHTTP改写之前的项目
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        sendRequestBtn.setOnClickListener {
+            sendRequestWithOkHttp()
+        }
+    }
+    ...
+    private fun sendRequestWithOkHttp() {
+        thread {
+            try {
+                val client = OkHttpClient()
+                val request = Request.Builder()
+                    .url("https://www.baidu.com")
+                    .build()
+                val response = client.newCall(request).execute()
+                val responseData = response.body?.string()
+                if (responseData != null) {
+                    showResponse(responseData)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+}
+
+11.3　解析XML格式数据
+在网络上传输数据时最常用的格式有两种：XML和JSON。
+  下面我们就来一个一个地进行学习。本节首先学习一下如何解析XML格式的数据。
+
+  11.3.1　Pull解析方式
+解析XML格式的数据其实也有挺多种方式的，本节中我们学习比较常用的两种：Pull解析和SAX解析
+既然XML格式的数据已经提供好了，现在要做的就是从中解析出我们想要得到的那部分内容
+
+class MainActivity : AppCompatActivity() {
+    ...
+    private fun sendRequestWithOkHttp() {
+        thread {
+            try {
+                val client = OkHttpClient()
+                val request = Request.Builder()
+                    // 指定访问的服务器地址是计算机本机
+                    .url("http://10.0.2.2/get_data.xml")
+                    .build()
+                val response = client.newCall(request).execute()
+                val responseData = response.body?.string()
+                if (responseData != null) {
+                    parseXMLWithPull(responseData)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    ...
+    private fun parseXMLWithPull(xmlData: String) {
+        try {
+            val factory = XmlPullParserFactory.newInstance()
+            val xmlPullParser = factory.newPullParser()
+            xmlPullParser.setInput(StringReader(xmlData))
+            var eventType = xmlPullParser.eventType
+            var id = ""
+            var name = ""
+            var version = ""
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                val nodeName = xmlPullParser.name
+                when (eventType) {
+                    // 开始解析某个节点
+                    XmlPullParser.START_TAG -> {
+                        when (nodeName) {
+                            "id" -> id = xmlPullParser.nextText()
+                            "name" -> name = xmlPullParser.nextText()
+                            "version" -> version = xmlPullParser.nextText()
+                        }
+                    }
+                    // 完成解析某个节点
+                    XmlPullParser.END_TAG -> {
+                        if ("app" == nodeName) {
+                            Log.d("MainActivity", "id is $id")
+                            Log.d("MainActivity", "name is $name")
+                            Log.d("MainActivity", "version is $version")
+                        }
+                    }
+                }
+                eventType = xmlPullParser.next()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}
+
+下面就来仔细看下parseXMLWithPull()方法中的代码吧。
+这里首先要创建一个XmlPullParserFactory的实例，并借助这个实例得到XmlPullParser对象，
+然后调用XmlPullParser的setInput()方法将服务器返回的XML数据设置进去，之后就可以开始解析了。
+解析的过程也非常简单，通过getEventType()可以得到当前的解析事件，
+然后在一个while循环中不断地进行解析，如果当前的解析事件不等于XmlPullParser.END_DOCUMENT，
+说明解析工作还没完成，调用next()方法后可以获取下一个解析事件。
+在while循环中，我们通过getName()方法得到了当前节点的名字。
+如果发现节点名等于id、name或version，就调用nextText()方法来获取节点内具体的内容，
+每当解析完一个app节点，就将获取到的内容打印出来。
+
+
+11.3.2　SAX解析方式
+SAX解析也是一种特别常用的XML解析方式，虽然它的用法比Pull解析要复杂一些，
+但在语义方面会更加清楚。
+要使用SAX解析，通常情况下我们会新建一个类继承自DefaultHandler，
+并重写父类的5个方法，如下所示：
+class MyHandler : DefaultHandler() {
+
+    override fun startDocument() {
+    }
+
+    override fun startElement(uri: String, localName: String, qName: String, attributes:
+        Attributes) {
+    }
+
+    override fun characters(ch: CharArray, start: Int, length: Int) {
+    }
+
+    override fun endElement(uri: String, localName: String, qName: String) {
+    }
+
+    override fun endDocument() {
+    }
+
+}
+
+startDocument()方法会在开始XML解析的时候调用，
+startElement()方法会在开始解析某个节点的时候调用，
+characters()方法会在获取节点中内容的时候调用，
+endElement()方法会在完成解析某个节点的时候调用，
+endDocument()方法会在完成整个XML解析的时候调用
+
+其中，startElement()、characters()和endElement()这3个方法是有参数的，
+从XML中解析出的数据就会以参数的形式传入这些方法中。需要注意的是，
+在获取节点中的内容时，characters()方法可能会被调用多次，
+
+一些换行符也被当作内容解析出来，我们需要针对这种情况在代码中做好控制。
+class ContentHandler : DefaultHandler() {
+
+    private var nodeName = ""
+
+    private lateinit var id: StringBuilder
+
+    private lateinit var name: StringBuilder
+
+    private lateinit var version: StringBuilder
+
+    override fun startDocument() {
+        id = StringBuilder()
+        name = StringBuilder()
+        version = StringBuilder()
+    }
+
+    override fun startElement(uri: String, localName: String, qName: String, attributes:
+        Attributes) {
+        // 记录当前节点名
+        nodeName = localName
+        Log.d("ContentHandler", "uri is $uri")
+        Log.d("ContentHandler", "localName is $localName")
+        Log.d("ContentHandler", "qName is $qName")
+        Log.d("ContentHandler", "attributes is $attributes")
+    }
+
+    override fun characters(ch: CharArray, start: Int, length: Int) {
+        // 根据当前节点名判断将内容添加到哪一个StringBuilder对象中
+        when (nodeName) {
+            "id" -> id.append(ch, start, length)
+            "name" -> name.append(ch, start, length)
+            "version" -> version.append(ch, start, length)
+        }
+    }
+
+    override fun endElement(uri: String, localName: String, qName: String) {
+        if ("app" == localName) {
+            Log.d("ContentHandler", "id is ${id.toString().trim()}")
+            Log.d("ContentHandler", "name is ${name.toString().trim()}")
+            Log.d("ContentHandler", "version is ${version.toString().trim()}")
+            // 最后要将StringBuilder清空
+            id.setLength(0)
+            name.setLength(0)
+            version.setLength(0)
+        }
+    }
+
+    override fun endDocument() {
+    }
+
+}
+
+接下来的工作就非常简单了，修改MainActivity中的代码
+class MainActivity : AppCompatActivity() {
+    ...
+    private fun sendRequestWithOkHttp() {
+        thread {
+            try {
+                val client = OkHttpClient()
+                val request = Request.Builder()
+                    // 指定访问的服务器地址是计算机本机
+                    .url("http://10.0.2.2/get_data.xml")
+                    .build()
+                val response = client.newCall(request).execute()
+                val responseData = response.body?.string()
+                if (responseData != null) {
+                    parseXMLWithSAX(responseData)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    ...
+    private fun parseXMLWithSAX(xmlData: String) {
+        try {
+            val factory = SAXParserFactory.newInstance()
+            val xmlReader = factory.newSAXParser().XMLReader
+            val handler = ContentHandler()
+            // 将ContentHandler的实例设置到XMLReader中
+            xmlReader.contentHandler = handler
+            // 开始执行解析
+            xmlReader.parse(InputSource(StringReader(xmlData)))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}
