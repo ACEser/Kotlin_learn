@@ -1,3 +1,184 @@
+5.1　Fragment是什么
+Fragment是一种可以嵌入在Activity当中的UI片段
+
+虽然Fragment对你来说是个全新的概念，但我相信你学习起来应该毫不费力，因为它和Activity实在是太像了，同样都能包含布局，同样都有自己的生命周期。
+你甚至可以将Fragment理解成一个迷你型的Activity，虽然这个迷你型的Activity有可能和普通的Activity是一样大的
+
+新建一个左侧Fragment的布局left_fragment.xml，代码如下所示：
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <Button
+        android:id="@+id/button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:text="Button"
+        />
+
+</LinearLayout>
+
+然后新建右侧Fragment的布局right_fragment.xml，代码如下所示：
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:background="#00ff00"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:textSize="24sp"
+        android:text="This is right fragment"
+        />
+
+</LinearLayout>
+
+接着新建一个LeftFragment类，并让它继承自Fragment
+现在编写一下LeftFragment中的代码，如下所示：
+class LeftFragment : Fragment() {
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
+            savedInstanceState: Bundle?): View? {
+        return inflater.inflate(R.layout.left_fragment, container, false)
+    }
+
+}
+
+
+接下来修改activity_main.xml中的代码
+这里还需要通过android:name属性来显式声明要添加的Fragment类名，注意一定要将类的包名也加上。
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" >
+
+    <fragment
+        android:id="@+id/leftFrag"
+        android:name="com.example.fragmenttest.LeftFragment"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1" />
+
+    <fragment
+        android:id="@+id/rightFrag"
+        android:name="com.example.fragmenttest.RightFragment"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1" />
+
+</LinearLayout>
+
+可以看到，我们使用了<fragment>标签在布局中添加Fragment，其中指定的大多数属性你已经非常熟悉了，
+只不过这里还需要通过android:name属性来显式声明要添加的Fragment类名，注意一定要将类的包名也加上。
+
+
+5.2.2　动态添加Fragment
+不过Fragment真正的强大之处在于，它可以在程序运行时动态地添加到Activity当中
+
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+//动态替换：
+        button.setOnClickListener {
+            replaceFragment(AnotherRightFragment())
+        }
+        replaceFragment(RightFragment())
+    }
+
+    private fun replaceFragment(fragment: Fragment) {
+        val fragmentManager = supportFragmentManager
+        val transaction = fragmentManager.beginTransaction()
+        transaction.replace(R.id.rightLayout, fragment)
+        transaction.commit()
+    }
+
+}
+结合replaceFragment()方法中的代码可以看出，动态添加Fragment主要分为5步。
+(1) 创建待添加Fragment的实例。
+(2) 获取FragmentManager，在Activity中可以直接调用getSupportFragmentManager()方法获取。
+(3) 开启一个事务，通过调用beginTransaction()方法开启。
+(4) 向容器内添加或替换Fragment，一般使用replace()方法实现，需要传入容器的id和待添加的Fragment实例。
+(5) 提交事务，调用commit()方法来完成。
+
+5.2.3　在Fragment中实现返回栈
+如果我们想实现类似于返回栈的效果，按下Back键可以回到上一个Fragment，该如何实现呢？
+FragmentTransaction中提供了一个addToBackStack()方法，可以用于将一个事务添加到返回栈中。
+
+修改MainActivity中的代码
+class MainActivity : AppCompatActivity() {
+
+    ...
+
+    private fun replaceFragment(fragment: Fragment) {
+        val fragmentManager = supportFragmentManager
+        val transaction = fragmentManager.beginTransaction()
+        transaction.replace(R.id.rightLayout, fragment)
+        transaction.addToBackStack(null)
+        transaction.commit()
+    }
+
+}
+这里我们在事务提交之前调用了FragmentTransaction的addToBackStack()方法，
+它可以接收一个名字用于描述返回栈的状态，一般传入null即可
+
+5.2.4　Fragment和Activity之间的交互
+如果想要在Activity中调用Fragment里的方法，或者在Fragment中调用Activity里的方法，应该如何实现呢？
+为了方便Fragment和Activity之间进行交互，
+FragmentManager提供了一个类似于findViewById()的方法，专门用于从布局文件中获取Fragment的实例
+val fragment = supportFragmentManager.findFragmentById(R.id.leftFrag) as LeftFragment
+
+调用FragmentManager的findFragmentById()方法，可以在Activity中得到相应Fragment的实例，然后就能轻松地调用Fragment里的方法了。
+
+另外，类似于findViewById()方法，kotlin-android-extensions插件也对findFragmentById()方法进行了扩展，
+允许我们直接使用布局文件中定义的Fragment id名称来自动获取相应的Fragment实例
+val fragment = leftFrag as LeftFragment
+
+掌握了如何在Activity中调用Fragment里的方法，那么在Fragment中又该怎样调用Activity里的方法呢？
+这就更简单了，在每个Fragment中都可以通过调用getActivity()方法来得到和当前Fragment相关联的Activity实例
+if (activity != null) {
+用了上面提到的as语法
+    val mainActivity = activity as MainActivity
+}
+这里由于getActivity()方法有可能返回null，因此我们需要先进行一个判空处理。
+有了Activity的实例，在Fragment中调用Activity里的方法就变得轻而易举了
+
+5.3　Fragment的生命周期
+● onAttach()：当Fragment和Activity建立关联时调用。
+● onCreateView()：为Fragment创建视图（加载布局）时调用。
+● onActivityCreated()：确保与Fragment相关联的Activity已经创建完毕时调用。
+● onDestroyView()：当与Fragment关联的视图被移除时调用。
+● onDetach()：当Fragment和Activity解除关联时调用。
+
+
+5.4　动态加载布局的技巧
+
+5.4.1　使用限定符
+如果你经常使用平板，应该会发现很多平板应用采用的是双页模式（程序会在左侧的面板上显示一个包含子项的列表，在右侧的面板上显示内容）
+那么怎样才能在运行时判断程序应该是使用双页模式还是单页模式呢？这就需要借助限定符（qualifier）来实现了
+（Android中常见的限定符在书中有表）
+
+5.4.2　使用最小宽度限定符
+有时候我们希望可以更加灵活地为不同设备加载布局，不管它们是不是被系统认定为large，这时就可以使用最小宽度限定符（smallest-width qualifier）。
+最小宽度限定符允许我们对屏幕的宽度指定一个最小值（以dp为单位），然后以这个最小值为临界点，
+屏幕宽度大于这个值的设备就加载一个布局，屏幕宽度小于这个值的设备就加载另一个布局。
+
+这就意味着，当程序运行在屏幕宽度大于等于600 dp的设备上时，
+会加载layout-sw600dp/activity_main布局，当程序运行在屏幕宽度小于600 dp的设备上时，
+则仍然加载默认的layout/activity_main布局。
+
+可以看到，layout/activity_main布局只包含了一个Fragment，即单页模式，
+而layout-large/ activity_main布局包含了两个Fragment，即双页模式。其中，large就是一个限定符
+
+
+
+
+
 实战的Fragment代码编写顺序：
 首先新建新闻类确定需要的资源，然后建立双页格式（双页是右边内容，左边标题）
 内容的新闻详情页的layout（标题，分割线，内容）和Fragment（新建类）
@@ -14,3 +195,37 @@
 
 现在还需要一个框架将新闻列表展示出去，所以编写新类作为标题的展示
 最后是将内容填充到RecycleView里面
+
+
+5.6　Kotlin课堂：扩展函数和运算符重载
+5.6.1　大有用途的扩展函数
+下面我们先来学习一下定义扩展函数的语法结构，其实非常简单
+fun ClassName.methodName(param1: Int, param2: Int): Int {
+    return 0
+}
+相比于定义一个普通的函数，定义扩展函数只需要在函数名的前面加上一个ClassName.的语法结构，就表示将该函数添加到指定类当中了。
+了解了定义扩展函数的语法结构，接下来我们就尝试使用扩展函数的方式来优化刚才的统计功能
+不过通常来说，最好将它定义成顶层方法，这样可以让扩展函数拥有全局的访问域
+
+
+fun String.lettersCount(): Int {
+    var count = 0
+    for (char in this) {
+        if (char.isLetter()) {
+            count++
+        }
+    }
+    return count
+}
+注意这里的代码变化，现在我们将lettersCount()方法定义成了String类的扩展函数，那么函数中就自动拥有了String实例的上下文
+因此lettersCount()函数就不再需要接收一个字符串参数了，而是直接遍历this即可，因为现在this就代表着字符串本身。
+
+定义好了扩展函数之后，统计某个字符串中的字母数量只需要这样写即可
+val count = "ABC123xyz!@#".lettersCount()
+
+扩展函数在很多情况下可以让API变得更加简洁、丰富，更加面向对象
+
+5.6.2　有趣的运算符重载
+运算符重载是Kotlin提供的一个比较有趣的语法糖。
+Kotlin允许我们将所有的运算符甚至其他的关键字进行重载，从而拓展这些运算符和关键字的用法。
+
