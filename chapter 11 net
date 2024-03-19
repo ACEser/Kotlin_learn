@@ -379,3 +379,765 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+
+
+11.4　解析JSON格式数据
+比起XML，JSON的主要优势在于它的体积更小，在网络上传输的时候更省流量。
+但缺点在于，它的语义性较差，看起来不如XML直观。
+
+11.4.1　使用JSONObject
+
+修改代码
+class MainActivity : AppCompatActivity() {
+    ...
+    private fun sendRequestWithOkHttp() {
+        thread {
+            try {
+                val client = OkHttpClient()
+                val request = Request.Builder()
+                    // 指定访问的服务器地址是计算机本机
+                    .url("http://10.0.2.2/get_data.json")
+                    .build()
+                val response = client.newCall(request).execute()
+                val responseData = response.body?.string()
+                if (responseData != null) {
+                    parseJSONWithJSONObject(responseData)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    ...
+    private fun parseJSONWithJSONObject(jsonData: String) {
+        try {
+            val jsonArray = JSONArray(jsonData)
+            for (i in 0 until jsonArray.length()) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                val id = jsonObject.getString("id")
+                val name = jsonObject.getString("name")
+                val version = jsonObject.getString("version")
+                Log.d("MainActivity", "id is $id")
+                Log.d("MainActivity", "name is $name")
+                Log.d("MainActivity", "version is $version")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}
+
+Google提供的GSON开源库可以让解析JSON数据的工作简单到让你不敢想象的地步，
+那我们肯定是不能错过这个学习机会的。
+
+那么GSON库究竟是神奇在哪里呢？
+它的强大之处就在于可以将一段JSON格式的字符串自动映射成一个对象，
+从而不需要我们再手动编写代码进行解析了。
+
+比如一段JSON格式如下：
+{"name":"Tom","age":20}
+
+那我们就可以定义一个Person类，并加入name和age这两个字段，
+然后只需简单地调用如下代码就可以将JSON数据自动解析成一个Person对象了：
+val gson = Gson()
+val person = gson.fromJson(jsonData, Person::class.java)
+
+如果需要解析的是一段JSON数组，会稍微麻烦一点，比如如下格式的数据：
+[{"name":"Tom","age":20}, {"name":"Jack","age":25}, {"name":"Lily","age":22}]
+
+这个时候，我们需要借助TypeToken将期望解析成的数据类型传入fromJson()方法中，如下所示：
+val typeOf = object : TypeToken<List<Person>>() {}.type
+val people = gson.fromJson<List<Person>>(jsonData, typeOf)
+
+好了，基本的用法就是这样，下面就让我们来真正地尝试一下吧。
+首先新增一个App类，并加入id、name和version这3个字段
+好了，基本的用法就是这样，下面就让我们来真正地尝试一下吧。首先新增一个App类，
+并加入id、name和version这3个字段
+
+
+然后修改MainActivity中的代码，如下所示：
+class MainActivity : AppCompatActivity() {
+    ...
+    private fun sendRequestWithOkHttp() {
+        thread {
+            try {
+                val client = OkHttpClient()
+                val request = Request.Builder()
+                    // 指定访问的服务器地址是计算机本机
+                    .url("http://10.0.2.2/get_data.json")
+                    .build()
+                val response = client.newCall(request).execute()
+                val responseData = response.body?.string()
+                if (responseData != null) {
+                    parseJSONWithGSON(responseData)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    ...
+    private fun parseJSONWithGSON(jsonData: String) {
+        val gson = Gson()
+        val typeOf = object : TypeToken<List<App>>() {}.type
+        val appList = gson.fromJson<List<App>>(jsonData, typeOf)
+        for (app in appList) {
+            Log.d("MainActivity", "id is ${app.id}")
+            Log.d("MainActivity", "name is ${app.name}")
+            Log.d("MainActivity", "version is ${app.version}")
+        }
+    }
+}
+
+11.5　网络请求回调的实现方式
+通常情况下我们应该将这些通用的网络操作提取到一个公共的类里，
+并提供一个通用方法，当想要发起网络请求的时候，
+只需简单地调用一下这个方法即可
+
+object HttpUtil {
+
+    fun sendHttpRequest(address: String): String {
+        var connection: HttpURLConnection? = null
+        try {
+            val response = StringBuilder()
+            val url = URL(address)
+            connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = 8000
+            connection.readTimeout = 8000
+            val input = connection.inputStream
+            val reader = BufferedReader(InputStreamReader(input))
+            reader.use {
+                reader.forEachLine {
+                    response.append(it)
+                }
+            }
+            return response.toString()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return e.message.toString()
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+}
+
+以后每当需要发起一条HTTP请求的时候，就可以这样写：
+val address = "https://www.baidu.com"
+val response = HttpUtil.sendHttpRequest(address)
+
+在获取到服务器响应的数据后，我们就可以对它进行解析和处理了
+但是需要注意，网络请求通常属于耗时操作，而sendHttpRequest()方法的内部并没有开启线程，
+这样就有可能导致在调用sendHttpRequest()方法的时候主线程被阻塞。
+
+如果我们在sendHttpRequest()方法中开启一个线程来发起HTTP请求，
+服务器响应的数据是无法进行返回的。这是由于所有的耗时逻辑都是在子线程里进行的，
+sendHttpRequest()方法会在服务器还没来得及响应的时候就执行结束了，当然也就无法返回响应的数据了
+
+只需要使用编程语言的回调机制就可以了
+首先需要定义一个接口，比如将它命名成HttpCallbackListener，代码如下所示：
+interface HttpCallbackListener {
+    fun onFinish(response: String)
+    fun onError(e: Exception)
+}
+
+接着修改HttpUtil中的代码，如下所示：
+object HttpUtil {
+
+    fun sendHttpRequest(address: String, listener: HttpCallbackListener) {
+        thread {
+            var connection: HttpURLConnection? = null
+            try {
+                val response = StringBuilder()
+                val url = URL(address)
+                connection = url.openConnection() as HttpURLConnection
+                connection.connectTimeout = 8000
+                connection.readTimeout = 8000
+                val input = connection.inputStream
+                val reader = BufferedReader(InputStreamReader(input))
+                reader.use {
+                    reader.forEachLine {
+                        response.append(it)
+                    }
+                }
+                // 回调onFinish()方法
+                listener.onFinish(response.toString())
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // 回调onError()方法
+                listener.onError(e)
+            } finally {
+                connection?.disconnect()
+            }
+        }
+    }
+
+}
+我们首先给sendHttpRequest()方法添加了一个HttpCallbackListener参数，
+并在方法的内部开启了一个子线程，然后在子线程里执行具体的网络操作
+
+现在sendHttpRequest()方法接收两个参数，
+因此我们在调用它的时候还需要将HttpCallbackListener的实例传入
+HttpUtil.sendHttpRequest(address, object : HttpCallbackListener {
+    override fun onFinish(response: String) {
+        // 得到服务器返回的具体内容
+    }
+
+    override fun onError(e: Exception) {
+        // 在这里对异常情况进行处理
+    }
+})
+
+这样当服务器成功响应的时候，我们就可以在onFinish()方法里对响应数据进行处理了。
+类似地，如果出现了异常，就可以在onError()方法里对异常情况进行处理。
+如此一来，我们就巧妙地利用回调机制将响应数据成功返回给调用方了。
+
+
+那么使用OkHttp会变得简单吗？答案是肯定的，而且要简单得多，下面我们来具体看一下。
+可以看到，sendOkHttpRequest()方法中有一个okhttp3.Callback参数，
+这个是OkHttp库中自带的回调接口，类似于我们刚才自己编写的HttpCallbackListener
+
+OkHttp在enqueue()方法的内部已经帮我们开好子线程了，
+然后会在子线程中执行HTTP请求，并将最终的请求结果回调到okhttp3.Callback当中。
+HttpUtil.sendOkHttpRequest(address, object : Callback {
+    override fun onResponse(call: Call, response: Response) {
+        // 得到服务器返回的具体内容
+        val responseData = response.body?.string()
+    }
+
+    override fun onFailure(call: Call, e: IOException) {
+        // 在这里对异常情况进行处理
+    }
+})
+
+11.6　最好用的网络库：Retrofit
+
+另外，需要注意的是，不管是使用HttpURLConnection还是OkHttp，
+最终的回调接口都还是在子线程中运行的，
+因此我们不可以在这里执行任何的UI操作，除非借助runOnUiThread()方法来进行线程转换。
+
+
+11.6.1　Retrofit的基本用法
+
+而Retrofit的用法就是基于以上几点来设计的，首先我们可以配置好一个根路径，
+然后在指定服务器接口地址时只需要使用相对路径即可，
+这样就不用每次都指定完整的URL地址了。
+
+由于Retrofit是基于OkHttp开发的，
+因此添加上述第一条依赖会自动将Retrofit、OkHttp和Okio这几个库一起下载，
+我们无须再手动引入OkHttp库
+另外，Retrofit还会将服务器返回的JSON数据自动解析成对象，
+因此上述第二条依赖就是一个Retrofit的转换库，它是借助GSON来解析JSON数据的，
+所以会自动将GSON库一起下载下来，这样我们也不用手动引入GSON库了
+
+interface AppService {
+
+    @GET("get_data.json")
+    fun getAppData(): Call<List<App>>
+
+}
+
+上述代码中有两点需要我们注意
+第一就是在getAppData()方法上面添加的注解，这里使用了一个@GET注解，
+表示当调用getAppData()方法时Retrofit会发起一条GET请求，
+请求的地址就是我们在@GET注解中传入的具体参数
+
+第二就是getAppData()方法的返回值必须声明成Retrofit中内置的Call类型，
+并通过泛型来指定服务器响应的数据应该转换成什么对象
+
+修改MainActivity的代码：
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        getAppDataBtn.setOnClickListener {
+
+
+            val retrofit = Retrofit.Builder()
+                .baseUrl("http://10.0.2.2/")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+可以看到，在“Get App Data”按钮的点击事件当中，
+首先使用了Retrofit.Builder来构建一个Retrofit对象，
+其中baseUrl()方法用于指定所有Retrofit请求的根路径，
+addConverterFactory()方法用于指定Retrofit在解析数据时所使用的转换库，
+这里指定成GsonConverterFactory。注意这两个方法都是必须调用的。
+
+
+            val appService = retrofit.create(AppService::class.java)
+
+有了Retrofit对象之后，我们就可以调用它的create()方法，
+并传入具体Service接口所对应的Class类型，创建一个该接口的动态代理对象
+如果你并不熟悉什么是动态代理也没有关系，你只需要知道有了动态代理对象之后，
+我们就可以随意调用接口中定义的所有方法，而Retrofit会自动执行具体的处理就可以了。
+
+            
+appService.getAppData().enqueue(object : Callback<List<App>> {
+对应到上述的代码当中，当调用了AppService的getAppData()方法时，
+会返回一个Call<List<App>>对象，这时我们再调用一下它的enqueue()方法，
+Retrofit就会根据注解中配置的服务器接口地址去进行网络请求了，
+服务器响应的数据会回调到enqueue()方法中传入的Callback实现里面
+
+                override fun onResponse(call: Call<List<App>>,
+                    response: Response<List<App>>) {
+                    val list = response.body()
+                    if (list != null) {
+                        for (app in list) {
+                            Log.d("MainActivity", "id is ${app.id}")
+                            Log.d("MainActivity", "name is ${app.name}")
+                            Log.d("MainActivity", "version is ${app.version}")
+                        }
+                    }
+                }
+
+                override fun onFailure(call: Call<List<App>>, t: Throwable) {
+                    t.printStackTrace()
+                }
+            })
+        }
+    }
+
+}
+
+
+
+11.6.2　处理复杂的接口地址类型
+如果你在使用浏览器上网时观察一下浏览器上的网址，你会发现这些网址可能会是千变万化的，
+那么本小节我们就来学习一下如何使用Retrofit来应对这些千变万化的情况。
+
+class Data(val id: String, val content: String)
+
+接口地址是静态的，永远不会改变。那么对应到Retrofit当中，使用如下的写法即可：
+interface ExampleService {
+
+    @GET("get_data.json")
+    fun getData(): Call<Data>
+
+}
+
+但是显然服务器不可能总是给我们提供静态类型的接口，
+在很多场景下，接口地址中的部分内容可能会是动态变化的
+
+在这个接口当中，<page>部分代表页数，我们传入不同的页数，服务器返回的数据也会不同
+interface ExampleService {
+
+    @GET("{page}/get_data.json")
+    fun getData(@Path("page") page: Int): Call<Data>
+
+}
+
+在@GET注解指定的接口地址当中，这里使用了一个{page}的占位符，
+然后又在getData()方法中添加了一个page参数，
+并使用@Path("page")注解来声明这个参数
+
+
+GET http://example.com/get_data.json?u=<user>&t=<token>
+这是一种标准的带参数GET请求的格式。接口地址的最后使用问号来连接参数部分，
+每个参数都是一个使用等号连接的键值对，多个参数之间使用“&”符号进行分隔
+Retrofit针对这种带参数的GET请求，专门提供了一种语法支持：
+interface ExampleService {
+
+    @GET("get_data.json")
+    fun getData(@Query("u") user: String, @Query("t") token: String): Call<Data>
+
+}
+
+不过HTTP并不是只有GET请求这一种类型，而是有很多种，
+其中比较常用的有GET、POST、PUT、PATCH、DELETE这几种
+
+它们之间的分工也很明确，简单概括的话，
+GET请求用于从服务器获取数据，POST请求用于向服务器提交数据，
+PUT和PATCH请求用于修改服务器上的数据，DELETE请求用于删除服务器上的数据。
+
+
+使用POST请求来提交数据，需要将数据放到HTTP请求的body部分，
+这个功能在Retrofit中可以借助@Body注解来完成
+interface ExampleService {
+
+    @POST("data/create")
+    fun createData(@Body data: Data): Call<ResponseBody>
+
+}
+
+最后，有些服务器接口还可能会要求我们在HTTP请求的header中指定参数，比如：
+GET http://example.com/get_data.json
+User-Agent: okhttp
+Cache-Control: max-age=0
+
+这些header参数其实就是一个个的键值对，
+我们可以在Retrofit中直接使用@Headers注解来对它们进行声明
+
+interface ExampleService {
+
+    @Headers("User-Agent: okhttp", "Cache-Control: max-age=0")
+    @GET("get_data.json")
+    fun getData(): Call<Data>
+
+}
+
+但是这种写法只能进行静态header声明，如果想要动态指定header的值，则需要使用@Header注解
+interface ExampleService {
+
+    @GET("get_data.json")
+    fun getData(@Header("User-Agent") userAgent: String,
+        @Header("Cache-Control") cacheControl: String): Call<Data>
+
+}
+
+现在当发起网络请求的时候，
+Retrofit就会自动将参数中传入的值设置到User-Agent和Cache-Control这两个header当中，
+从而实现了动态指定header值的功能
+
+
+11.6.3　Retrofit构建器的最佳写法
+其实还有一个问题我们没有正视过，就是获取Service接口的动态代理对象实在是太麻烦了。
+val retrofit = Retrofit.Builder()
+    .baseUrl("http://10.0.2.2/")
+    .addConverterFactory(GsonConverterFactory.create())
+    .build()
+val appService = retrofit.create(AppService::class.java)
+
+
+我们想要得到AppService的动态代理对象，
+需要先使用Retrofit.Builder构建出一个Retrofit对象，
+然后再调用Retrofit对象的create()方法创建动态代理对象
+
+事实上，确实也没有每次都写一遍的必要，因为构建出的Retrofit对象是全局通用的，
+只需要在调用create()方法时针对不同的Service接口传入相应的Class类型即可
+
+
+新建一个ServiceCreator单例类，代码如下所示：
+object ServiceCreator {
+
+    private const val BASE_URL = "http://10.0.2.2/"
+
+    private val retrofit = Retrofit.Builder()
+        .baseUrl(BASE_URL)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    fun <T> create(serviceClass: Class<T>): T = retrofit.create(serviceClass)
+
+}
+
+这里我们使用object关键字让ServiceCreator成为了一个单例类，
+并在它的内部定义了一个BASE_URL常量，用于指定Retrofit的根路径
+最后，我们提供了一个外部可见的create()方法，并接收一个Class类型的参数
+
+不过上述代码其实仍然还有优化空间，还记得我们在上一章的Kotlin课堂中学习的泛型实化功能吗？
+object ServiceCreator {
+    ...
+    inline fun <reified T> create(): T = create(T::class.java)
+}
+
+可以看到，我们又定义了一个不带参数的create()方法，
+并使用inline关键字来修饰方法，使用reified关键字来修饰泛型，这是泛型实化的两大前提条件。
+接下来就可以使用T::class.java这种语法了，这里调用刚才定义的带有Class参数的create()方法即可。
+val appService = ServiceCreator.create<AppService>()
+
+
+11.7　Kotlin课堂：使用协程编写高效的并发程序
+
+协程属于Kotlin中非常有特色的一项技术，
+因为大部分编程语言中是没有协程这个概念的。
+
+那么什么是协程呢？它其实和线程是有点类似的，可以简单地将它理解成一种轻量级的线程
+要知道，我们之前所学习的线程是非常重量级的，它需要依靠操作系统的调度才能实现不同线程之间的切换。
+而使用协程却可以仅在编程语言的层面就能实现不同协程之间的切换，从而大大提升了并发编程的运行效率。
+
+可以看出，协程允许我们在单线程模式下模拟多线程编程的效果，
+代码执行时的挂起与恢复完全是由编程语言来控制的，和操作系统无关
+
+11.7.1　协程的基本用法
+Kotlin并没有将协程纳入标准库的API当中，而是以依赖库的形式提供的
+
+首先我们要面临的第一个问题就是，如何开启一个协程？
+最简单的方式就是使用Global.launch函数
+fun main() {
+    GlobalScope.launch {
+        println("codes run in coroutine scope")
+    }
+}
+
+GlobalScope.launch函数可以创建一个协程的作用域，
+这样传递给launch函数的代码块（Lambda表达式）就是在协程中运行的了
+
+Global.launch函数每次创建的都是一个顶层协程，
+这种协程当应用程序运行结束时也会跟着一起结束
+
+要解决这个问题也很简单，我们让程序延迟一段时间再结束就行了
+fun main() {
+    GlobalScope.launch {
+        println("codes run in coroutine scope")
+    }
+    Thread.sleep(1000)
+}
+
+
+可是这种写法还是存在问题，如果代码块中的代码在1秒钟之内不能运行结束，那么就会被强制中断
+fun main() {
+    GlobalScope.launch {
+        println("codes run in coroutine scope")
+        delay(1500)
+        println("codes run in coroutine scope finished")
+    }
+    Thread.sleep(1000)
+}
+我们在代码块中加入了一个delay()函数，并在之后又打印了一行日志。
+delay()函数可以让当前协程延迟指定时间后再运行，但它和Thread.sleep()方法不同。
+delay()函数是一个非阻塞式的挂起函数，它只会挂起当前协程，并不会影响其他协程的运行。
+而Thread.sleep()方法会阻塞当前的线程，这样运行在该线程下的所有协程都会被阻塞。
+注意，delay()函数只能在协程的作用域或其他挂起函数中调用
+
+
+有没有什么办法能让应用程序在协程中所有代码都运行完了之后再结束呢？
+当然也是有的，借助runBlocking函数就可以实现这个功能
+fun main() {
+    runBlocking {
+        println("codes run in coroutine scope")
+        delay(1500)
+        println("codes run in coroutine scope finished")
+    }
+}
+
+runBlocking函数同样会创建一个协程的作用域，
+但是它可以保证在协程作用域内的所有代码和子协程没有全部执行完之前一直阻塞当前线程
+
+那么如何才能创建多个协程呢？很简单，使用launch函数就可以了
+fun main() {
+    runBlocking {
+        launch {
+            println("launch1")
+            delay(1000)
+            println("launch1 finished")
+        }
+        launch {
+            println("launch2")
+            delay(1000)
+            println("launch2 finished")
+        }
+    }
+}
+
+注意这里的launch函数和我们刚才所使用的GlobalScope.launch函数不同
+首先它必须在协程的作用域中才能调用，其次它会在当前协程的作用域下创建子协程。
+子协程的特点是如果外层作用域的协程结束了，该作用域下的所有子协程也会一同结束。
+相比而言，GlobalScope.launch函数创建的永远是顶层协程，
+这一点和线程比较像，因为线程也没有层级这一说，永远都是顶层的。
+
+
+不过，随着launch函数中的逻辑越来越复杂，可能你需要将部分代码提取到一个单独的函数中。
+这个时候就产生了一个问题：我们在launch函数中编写的代码是拥有协程作用域的，
+但是提取到一个单独的函数中就没有协程作用域了，那么我们该如何调用像delay()这样的挂起函数呢？
+
+为此Kotlin提供了一个suspend关键字，使用它可以将任意函数声明成挂起函数，而挂起函数之间都是可以互相调用的
+suspend fun printDot() {
+    println(".")
+    delay(1000)
+}
+
+但是，suspend关键字只能将一个函数声明成挂起函数，是无法给它提供协程作用域的
+
+比如你现在尝试在printDot()函数中调用launch函数，一定是无法调用成功的，
+因为launch函数要求必须在协程作用域当中才能调用。
+
+
+这个问题可以借助coroutineScope函数来解决。
+coroutineScope函数也是一个挂起函数，因此可以在任何其他挂起函数中调用
+它的特点是会继承外部的协程的作用域并创建一个子协程，借助这个特性，我们就可以给任意挂起函数提供协程作用域了。
+suspend fun printDot() = coroutineScope {
+    launch {
+        println(".")
+        delay(1000)
+    }
+}
+
+
+
+另外，coroutineScope函数和runBlocking函数还有点类似，
+它可以保证其作用域内的所有代码和子协程在全部执行完之前，外部的协程会一直被挂起
+fun main() {
+    runBlocking {
+        coroutineScope {
+            launch {
+                for (i in 1..10) {
+                    println(i)
+                    delay(1000)
+                }
+            }
+        }
+        println("coroutineScope finished")
+    }
+    println("runBlocking finished")
+}
+
+这里先使用runBlocking函数创建了一个协程作用域，然后调用coroutineScope函数创建了一个子协程。
+
+
+虽然看上去coroutineScope函数和runBlocking函数的作用是有点类似的，
+但是coroutineScope函数只会阻塞当前协程，既不影响其他协程，也不影响任何线程，
+因此是不会造成任何性能上的问题的
+
+
+而runBlocking函数由于会挂起外部线程，如果你恰好又在主线程中当中调用它的话，
+那么就有可能会导致界面卡死的情况，所以不太推荐在实际项目中使用。
+
+
+11.7.2　更多的作用域构建器
+在上一小节中，我们学习了GlobalScope.launch、
+runBlocking、launch、coroutineScope这几种作用域构建器，
+它们都可以用于创建一个新的协程作用域
+
+不过GlobalScope.launch和runBlocking函数是可以在任意地方调用的，
+coroutineScope函数可以在协程作用域或挂起函数中调用，而launch函数只能在协程作用域中调用。
+
+前面已经说了，runBlocking由于会阻塞线程，因此只建议在测试环境下使用。
+而GlobalScope.launch由于每次创建的都是顶层协程，
+一般也不太建议使用，除非你非常明确就是要创建顶层协程。
+
+
+
+为什么说不太建议使用顶层协程呢？主要还是因为它管理起来成本太高了
+因此，GlobalScope.launch这种协程作用域构建器，在实际项目中也是不太常用的
+
+下面我来演示一下实际项目中比较常用的写法：
+val job = Job()
+val scope = CoroutineScope(job)
+scope.launch {
+    // 处理具体的逻辑
+}
+job.cancel()
+
+
+可以看到，我们先创建了一个Job对象，然后把它传入CoroutineScope()函数当中，
+注意这里的CoroutineScope()是个函数，虽然它的命名更像是一个类
+
+CoroutineScope()函数会返回一个CoroutineScope对象，
+这种语法结构的设计更像是我们创建了一个CoroutineScope的实例，可能也是Kotlin有意为之的。
+有了CoroutineScope对象之后，就可以随时调用它的launch函数来创建一个协程了。
+
+现在所有调用CoroutineScope的launch函数所创建的协程，都会被关联在Job对象的作用域下面。
+
+你已经知道了调用launch函数可以创建一个新的协程，
+但是launch函数只能用于执行一段逻辑，却不能获取执行的结果，因为它的返回值永远是一个Job对象。
+那么有没有什么办法能够创建一个协程并获取它的执行结果呢？当然有，使用async函数就可以实现。
+
+async函数必须在协程作用域当中才能调用，它会创建一个新的子协程并返回一个Deferred对象
+如果我们想要获取async函数代码块的执行结果，只需要调用Deferred对象的await()方法即可，代码如下所示：
+fun main() {
+    runBlocking {
+        val result = async {
+            5 + 5
+        }.await()
+        println(result)
+    }
+}
+
+这里我们在async函数的代码块中进行了一个简单的数学运算，
+然后调用await()方法获取运算结果，最终将结果打印出来
+
+
+不过async函数的奥秘还不止于此。
+事实上，在调用了async函数之后，代码块中的代码就会立刻开始执行
+当调用await()方法时，
+如果代码块中的代码还没执行完，那么await()方法会将当前协程阻塞住，
+直到可以获得async函数的执行结果
+fun main() {
+    runBlocking {
+        val start = System.currentTimeMillis()
+        val result1 = async {
+            delay(1000)
+            5 + 5
+        }.await()
+        val result2 = async {
+            delay(1000)
+            4 + 6
+        }.await()
+        println("result is ${result1 + result2}.")
+        val end = System.currentTimeMillis()
+        println("cost ${end - start} ms.")
+    }
+}
+
+
+这种写法明显是非常低效的，因为两个async函数完全可以同时执行从而提高运行效率
+fun main() {
+    runBlocking {
+        val start = System.currentTimeMillis()
+        val deferred1 = async {
+            delay(1000)
+            5 + 5
+        }
+        val deferred2 = async {
+            delay(1000)
+            4 + 6
+        }
+        println("result is ${deferred1.await() + deferred2.await()}.")
+        val end = System.currentTimeMillis()
+        println("cost ${end - start} milliseconds.")
+    }
+}
+
+
+
+最后，我们再来学习一个比较特殊的作用域构建器：withContext()函数
+withContext()函数是一个挂起函数，大体可以将它理解成async函数的一种简化版写法，示例写法如下：
+fun main() {
+    runBlocking {
+        val result = withContext(Dispatchers.Default) {
+            5 + 5
+        }
+        println(result)
+    }
+}
+
+
+你已经知道，协程是一种轻量级的线程的概念，
+因此很多传统编程情况下需要开启多线程执行的并发任务，
+现在只需要在一个线程下开启多个协程来执行就可以了。
+但是这并不意味着我们就永远不需要开启线程了，
+比如说Android中要求网络请求必须在子线程中进行，即使你开启了协程去执行网络请求，
+假如它是主线程当中的协程，那么程序仍然会出错。
+这个时候我们就应该通过线程参数给协程指定一个具体的运行线程。
+
+
+线程参数主要有以下3种值可选：Dispatchers.Default、Dispatchers.IO和Dispatchers.Main
+Dispatchers.IO表示会使用一种较高并发的线程策略，当你要执行的代码大多数时间是在阻塞和等待中，
+比如说执行网络请求时，为了能够支持更高的并发数量，
+此时就可以使用Dispatchers.IO。Dispatchers.Main则表示不会开启子线程，
+而是在Android主线程中执行代码，
+但是这个值只能在Android项目中使用，纯Kotlin程序使用这种类型的线程参数会出现错误
+
+事实上，在我们刚才所学的协程作用域构建器中，
+除了coroutineScope函数之外，其他所有的函数都是可以指定这样一个线程参数的
+
+到目前为止，你已经掌握了协程中最常用的一些用法，
+并且了解了协程的主要用途就是可以大幅度地提升并发编程的运行效率
+
+
+11.7.3　使用协程简化回调的写法
+在11.5节，我们学习了编程语言的回调机制，并使用这个机制实现了获取异步网络请求数据响应的功能。
+不知道你有没有发现，回调机制基本上是依靠匿名类来实现的，但是匿名类的写法通常比较烦琐
+HttpUtil.sendHttpRequest(address, object : HttpCallbackListener {
+    override fun onFinish(response: String) {
+        // 得到服务器返回的具体内容
+    }
+
+    override fun onError(e: Exception) {
+        // 在这里对异常情况进行处理
+    }
+})
+
+
+在过去，可能确实没有什么更加简单的写法了。
+不过现在，Kotlin的协程使我们的这种设想成为了可能，
+只需要借助suspendCoroutine函数就能将传统回调机制的写法大幅简化，下面我们就来具体学习一下。
+
+
+suspendCoroutine函数必须在协程作用域或挂起函数中才能调用，
+它接收一个Lambda表达式参数，主要作用是将当前协程立即挂起，
+然后在一个普通的线程中执行Lambda表达式中的代码。
+Lambda表达式的参数列表上会传入一个Continuation参数，
+调用它的resume()方法或resumeWithException()可以让协程恢复执行。
+
