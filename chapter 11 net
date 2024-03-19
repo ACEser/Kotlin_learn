@@ -1141,3 +1141,41 @@ suspendCoroutine函数必须在协程作用域或挂起函数中才能调用，
 Lambda表达式的参数列表上会传入一个Continuation参数，
 调用它的resume()方法或resumeWithException()可以让协程恢复执行。
 
+
+
+了解了suspendCoroutine函数的作用之后，接下来我们就可以借助这个函数来对传统的回调写法进行优化
+首先定义一个request()函数，代码如下所示：
+suspend fun request(address: String): String {
+    return suspendCoroutine { continuation ->
+        HttpUtil.sendHttpRequest(address, object : HttpCallbackListener {
+            override fun onFinish(response: String) {
+                continuation.resume(response)
+            }
+
+            override fun onError(e: Exception) {
+                continuation.resumeWithException(e)
+            }
+        })
+    }
+}
+
+可以看到，request()函数是一个挂起函数，并且接收一个address参数
+
+在request()函数的内部，我们调用了刚刚介绍的suspendCoroutine函数，这样当前协程就会被立刻挂起，
+而Lambda表达式中的代码则会在普通线程中执行。
+接着我们在Lambda表达式中调用HttpUtil.sendHttpRequest()方法发起网络请求，
+并通过传统回调的方式监听请求结果。如果请求成功就调用Continuation的resume()方法恢复被挂起的协程，
+并传入服务器响应的数据，该值会成为suspendCoroutine函数的返回值。
+如果请求失败，就调用Continuation的resumeWithException()恢复被挂起的协程，并传入具体的异常原因。
+
+
+你可能会说，这里不是仍然使用了传统回调的写法吗？代码怎么就变得更加简化了？
+这是因为，不管之后我们要发起多少次网络请求，都不需要再重复进行回调实现了
+suspend fun getBaiduResponse() {
+    try {
+        val response = request("https://www.baidu.com/")
+        // 对服务器响应的数据进行处理
+    } catch (e: Exception) {
+        // 对异常情况进行处理
+    }
+}
