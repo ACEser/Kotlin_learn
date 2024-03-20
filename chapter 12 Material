@@ -1,0 +1,582 @@
+12.1　什么是Material Design
+Material Design是由Google的设计工程师们基于传统优秀的设计原则，
+结合丰富的创意和科学技术所开发的一套全新的界面设计语言，包含了视觉、运动、互动效果等特性。
+
+12.2　Toolbar
+Toolbar将会是我们本章接触的第一个控件，是由AndroidX库提供的
+对于它的另一个相关控件ActionBar，你就应该有点熟悉了。
+我们曾经在4.4.1小节为了使用一个自定义的标题栏，
+而隐藏了系统原生的ActionBar。没错，每个Activity最顶部的那个标题栏其实就是ActionBar
+
+而现在我们准备使用Toolbar来替代ActionBar，因此需要指定一个不带ActionBar的主题，
+通常有Theme.AppCompat.NoActionBar 和Theme.AppCompat.Light.NoActionBar这两种主题可选
+
+现在我们已经将ActionBar隐藏起来了，那么接下来看一看如何使用Toolbar来替代ActionBar。
+修改activity_main.xml中的代码，如下所示
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/colorPrimary"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+
+</FrameLayout>
+
+首先看一下第2行，这里使用xmlns:app指定了一个新的命名空间。
+思考一下，正是由于每个布局文件都会使用xmlns:android来指定一个命名空间，
+我们才能一直使用android:id、android: layout_width等写法。
+这里指定了xmlns:app，也就是说现在可以使用app:attribute这样的写法了
+
+  
+12.3　滑动菜单
+就是将一些菜单选项隐藏起来，而不是放置在主屏幕上，然后可以通过滑动的方式将菜单显示出来。
+这种方式既节省了屏幕空间，又实现了非常好的动画效果，是Material Design中推荐的做法。
+
+不过，如果我们全靠自己去实现上述功能的话，难度恐怕就很大了。
+幸运的是，Google在AndroidX库中提供了一个DrawerLayout控件，
+借助这个控件，实现滑动菜单简单又方便。
+
+12.3.1　DrawerLayout
+
+  
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/colorPrimary"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+
+    </FrameLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="#FFF"
+        android:text="This is menu"
+        android:textSize="30sp" />
+
+</androidx.drawerlayout.widget.DrawerLayout>
+
+但是关于第二个子控件有一点需要注意，layout_gravity这个属性是必须指定的，
+因为我们需要告诉DrawerLayout滑动菜单是在屏幕的左边还是右边，
+指定left表示滑动菜单在左边，指定right表示滑动菜单在右边。这里我指定了start，表示会根据系统语言进行判断，
+如果系统语言是从左往右的，比如英语、汉语，滑动菜单就在左边，如果系统语言是从右往左的，
+比如阿拉伯语，滑动菜单就在右边。
+
+
+我们只是稍微改动了一下布局文件，就能实现如此炫酷的效果，
+是不是觉得挺激动呢？ 不过现在的滑动菜单还有点问题，
+因为只有在屏幕的左侧边缘进行拖动时才能将菜单拖出来，
+而很多用户可能根本就不知道有这个功能，那么该怎么提示他们呢？
+
+Material Design建议的做法是在Toolbar的最左边加入一个导航按钮，点击按钮也会将滑动菜单的内容展示出来。
+下面我们来实现这个功能。
+首先我准备了一张导航按钮的图标ic_menu.png，将它放在了drawable-xxhdpi目录下
+
+  class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        setSupportActionBar(toolbar)
+        supportActionBar?.let {
+  
+接着在ActionBar不为空的情况下调用setDisplayHomeAsUpEnabled()方法让导航按钮显示出来，
+调用setHomeAsUpIndicator()方法来设置一个导航按钮图标。实际上，Toolbar最左侧的这个按钮就叫作Home按钮，
+它默认的图标是一个返回的箭头，含义是返回上一个Activity。很明显，这里我们将它默认的样式和作用都进行了修改
+  
+            it.setDisplayHomeAsUpEnabled(true)
+            it.setHomeAsUpIndicator(R.drawable.ic_menu)
+        }
+    }
+    ...
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+      然后调用DrawerLayout的openDrawer()方法将滑动菜单展示出来，
+      注意，openDrawer()方法要求传入一个Gravity参数，
+      为了保证这里的行为和XML中定义的一致，我们传入了GravityCompat.START。
+        when (item.itemId) {
+            android.R.id.home -> drawerLayout.openDrawer(GravityCompat.START)
+            ...
+        }
+        return true
+    }
+
+}
+
+这里我们并没有改动多少代码，首先调用getSupportActionBar()方法得到了ActionBar的实例，
+虽然这个ActionBar的具体实现是由Toolbar来完成的
+
+
+12.3.2　NavigationView
+事实上，你可以在滑动菜单页面定制任意的布局，不过Google给我们提供了一种更好的方法——使用NavigationView
+
+打开app/build.gradle文件，在dependencies闭包中添加如下内容：
+dependencies {
+    ...
+    implementation 'com.google.android.material:material:1.1.0'
+    implementation 'de.hdodenhof:circleimageview:3.0.1'
+}
+
+需要注意的是，当你引入了Material库之后，还需要将res/values/styles.xml文件中AppTheme的parent主题
+改成Theme.MaterialComponents.Light.NoActionBar，否则在使用接下来的一些控件时可能会遇到崩溃问题。
+
+
+在开始使用NavigationView之前，我们还需要准备好两个东西：menu和headerLayout。
+menu是用来在NavigationView中显示具体的菜单项的，headerLayout则是用来在NavigationView中显示头部布局的
+
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/colorPrimary"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+
+    </FrameLayout>
+
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/navView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        app:menu="@menu/nav_menu"
+        app:headerLayout="@layout/nav_header"/>
+
+</androidx.drawerlayout.widget.DrawerLayout>
+
+
+可以看到，我们将之前的TextView换成了NavigationView，
+这样滑动菜单中显示的内容也就变成NavigationView了。
+这里又通过app:menu和app:headerLayout属性将我们刚才准备好的menu和headerLayout设置了进去，
+这样NavigationView就定义完成了。
+
+
+12.4　悬浮按钮和可交互提示
+
+立面设计是Material Design中一条非常重要的设计思想，
+也就是说，按照Material Design的理念，应用程序的界面不仅仅是一个平面，而应该是有立体效果的
+
+12.4.1　FloatingActionButton
+FloatingActionButton是Material库中提供的一个控件，这个控件可以帮助我们比较轻松地实现悬浮按钮的效果
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/colorPrimary"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="16dp"
+            android:src="@drawable/ic_done" />
+
+    </FrameLayout>
+    ...
+</androidx.drawerlayout.widget.DrawerLayout>
+  
+可以看到，这里我们在主屏幕布局中加入了一个FloatingActionButton。这个控件的用法并没有什么特别的地方，
+layout_width和layout_height属性都指定成wrap_content，layout_gravity属性指定将这个控件放置于屏幕的右下角
+
+如果你在期待FloatingActionButton会有什么特殊用法的话，那可能要让你失望了，
+它和普通的Button其实没什么两样，都是调用setOnClickListener()方法来设置按钮的点击事件
+
+12.4.2　Snackbar
+使用Toast作为提示工具的，本小节我们就来学习一个Material库提供的更加先进的提示工具——Snackbar。
+首先要明确，Snackbar并不是Toast的替代品，它们有着不同的应用场景。T
+oast的作用是告诉用户现在发生了什么事情，但用户只能被动接收这个事情，因为没有什么办法能让用户进行选择。
+而Snackbar则在这方面进行了扩展，它允许在提示中加入一个可交互按钮，
+当用户点击按钮的时候，可以执行一些额外的逻辑操作
+
+Snackbar的用法也非常简单，它和Toast是基本相似的，
+只不过可以额外增加一个按钮的点击事件。修改MainActivity中的代码，如下所示：
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        ...
+        fab.setOnClickListener { view ->
+            Snackbar.make(view, "Data deleted", Snackbar.LENGTH_SHORT)
+                .setAction("Undo") {
+                    Toast.makeText(this, "Data restored", Toast.LENGTH_SHORT).show()
+                }
+                .show()
+        }
+    }
+    ...
+}
+这里调用了Snackbar的make()方法来创建一个Snackbar对象。
+make()方法的第一个参数需要传入一个View，只要是当前界面布局的任意一个View都可以，
+Snackbar会使用这个View自动查找最外层的布局，用于展示提示信息；
+第二个参数就是Snackbar中显示的内容；
+第三个参数是Snackbar显示的时长，这些和Toast都是类似的。
+
+接着这里又调用了一个setAction()方法来设置一个动作，从而让Snackbar不仅仅是一个提示，而是可以和用户进行交互的。
+Snackbar从屏幕底部出现了，上面有我们设置的提示文字，还有一个“Undo”按钮，按钮是可以点击的。
+过一段时间后，Snackbar会自动从屏幕底部消失。
+
+不过，你有没有发现一个bug？这个Snackbar竟然将我们的悬浮按钮给遮挡住了
+
+
+12.4.3　CoordinatorLayout
+CoordinatorLayout可以说是一个加强版的FrameLayout，由AndroidX库提供。
+它在普通情况下的作用和FrameLayout基本一致，但是它拥有一些额外的Material能力。
+
+
+事实上，CoordinatorLayout可以监听其所有子控件的各种事件，并自动帮助我们做出最为合理的响应
+举个简单的例子，刚才弹出的Snackbar提示将悬浮按钮遮挡住了，
+而如果我们能让CoordinatorLayout监听到Snackbar的弹出事件，
+那么它会自动将内部的FloatingActionButton向上偏移，从而确保不会被Snackbar遮挡。
+
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/colorPrimary"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="16dp"
+            android:src="@drawable/ic_done" />
+
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+    ...
+</androidx.drawerlayout.widget.DrawerLayout>
+
+由于CoordinatorLayout本身就是一个加强版的FrameLayout，因此这种替换不会有任何的副作用。
+悬浮按钮自动向上偏移了Snackbar的同等高度，从而确保不会被遮挡。
+当Snackbar消失的时候，悬浮按钮会自动向下偏移回到原来的位置。
+
+
+不过我们回过头来再思考一下，刚才说的是CoordinatorLayout可以监听其所有子控件的各种事件，
+但是Snackbar好像并不是CoordinatorLayout的子控件吧，为什么它却可以被监听到呢？
+
+
+其实道理很简单，还记得我们在Snackbar的make()方法中传入的第一个参数吗？
+这个参数就是用来指定Snackbar是基于哪个View触发的，刚才我们传入的是FloatingActionButton本身，
+而FloatingActionButton是CoordinatorLayout中的子控件，因此这个事件就理所应当能被监听到了
+
+
+本节的内容就讲到这里，接下来我们继续丰富MaterialTest项目，加入卡片式布局效果。
+
+
+12.5　卡片式布局
+为了要让水果图片也能Material化，本节中我们将会学习如何实现卡片式布局的效果。
+卡片式布局也是Materials Design中提出的一个新概念，
+它可以让页面中的元素看起来就像在卡片中一样，并且还能拥有圆角和投影，下面我们就开始具体学习一下。
+
+12.5.1　MaterialCardView
+MaterialCardView是用于实现卡片式布局效果的重要控件，由Material库提供。
+实际上，MaterialCardView也是一个FrameLayout，只是额外提供了圆角和阴影等效果，看上去会有立体的感觉。
+
+<com.google.android.material.card.MaterialCardView
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="4dp"
+    app:elevation="5dp">
+    <TextView
+        android:id="@+id/infoText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+</com.google.android.material.card.MaterialCardView>
+
+这里定义了一个MaterialCardView布局，
+我们可以通过app:cardCornerRadius属性指定卡片圆角的弧度，数值越大，圆角的弧度也越大
+
+然后，我们在MaterialCardView布局中放置了一个TextView，那么这个TextView就会显示在一张卡片当中了，就是这么简单。
+
+由于我们还需要用到RecyclerView，因此必须在app/build.gradle文件中声明库的依赖：
+  dependencies {
+    ...
+    implementation 'androidx.recyclerview:recyclerview:1.0.0'
+    implementation 'com.github.bumptech.glide:glide:4.9.0'
+}
+
+
+  接着定义一个实体类Fruit，代码如下所示：
+class Fruit(val name: String, val imageId: Int)
+Fruit类中只有两个字段：name表示水果的名字，imageId表示水果对应图片的资源id。
+
+
+这里使用了MaterialCardView来作为子项的最外层布局，从而使得RecyclerView中的每个元素都是在卡片当中的
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="5dp"
+    app:cardCornerRadius="4dp">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/fruitImage"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:scaleType="centerCrop" />
+
+        <TextView
+            android:id="@+id/fruitName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_margin="5dp"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>
+  
+
+内容倒也没有什么特殊的地方，就是定义了一个ImageView用于显示水果的图片，
+又定义了一个TextView用于显示水果的名称，并让TextView在水平方向上居中显示
+
+
+注意，在ImageView中我们使用了一个scaleType属性，这个属性可以指定图片的缩放模式。
+由于各张水果图片的长宽比例可能会不一致，
+为了让所有的图片都能填充满整个ImageView，这里使用了centerCrop模式，
+
+
+我们为什么要使用Glide而不是传统的设置图片方式呢？因为这次我从网上找的这些水果图片像素非常高，
+如果不进行压缩就直接展示的话，很容易引起内存溢出。而使用Glide就完全不需要担心这回事，
+Glide在内部做了许多非常复杂的逻辑操作，其中就包括了图片压缩，
+我们只需要安心按照Glide的标准用法去加载图片就可以了。
+它可以让图片保持原有比例填充满ImageView，并将超出屏幕的部分裁剪掉
+
+GridLayoutManager的用法也没有什么特别之处，它的构造函数接收两个参数：
+第一个是Context，第二个是列数。这里我们希望每一行中会有两列数据。
+
+
+当你陶醉于当前精美的界面的时候，你是不是忽略了一个细节？哎呀，我们的Toolbar怎么不见了！仔细观察一下原来是被RecyclerView给挡住了。
+这个问题又该怎么解决呢？这就需要借助另外一个工具了——AppBarLayout。
+
+
+12.5.2　AppBarLayout
+首先，我们来分析一下为什么RecyclerView会把Toolbar给遮挡住吧。
+其实并不难理解，由于RecyclerView和Toolbar都是放置在CoordinatorLayout中的，
+而前面已经说过，CoordinatorLayout就是一个加强版的FrameLayout，
+那么FrameLayout中的所有控件在不进行明确定位的情况下，默认都会摆放在布局的左上角
+
+
+既然已经找到了问题的原因，那么该如何解决呢？在传统情况下，
+使用偏移是唯一的解决办法，即让RecyclerView向下偏移一个Toolbar的高度
+
+
+这里我准备使用Material库中提供的另外一个工具——AppBarLayout。
+
+
+那么我们怎样使用AppBarLayout才能解决前面的遮挡问题呢？其实只需要两步就可以了，
+第一步将Toolbar嵌套到AppBarLayout中，第二步给RecyclerView指定一个布局行为。
+修改activity_main.xml中的代码
+  
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <com.google.android.material.appbar.AppBarLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:background="@color/colorPrimary"
+                android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+                app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+
+        </com.google.android.material.appbar.AppBarLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+        ...
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+    ...
+</androidx.drawerlayout.widget.DrawerLayout>
+
+然后在RecyclerView中使用app:layout_behavior属性指定了一个布局行为。
+  其中appbar_scrolling_view_behavior这个字符串也是由Material库提供的。
+
+AppBarLayout实际上是一个垂直方向的LinearLayout，
+它在内部做了很多滚动事件的封装，并应用了一些Material Design的设计理念。
+
+
+虽说使用AppBarLayout已经成功解决了RecyclerView遮挡Toolbar的问题，
+但是刚才提到过，AppBarLayout中应用了一些Material Design的设计理念，好像从上面的例子完全体现不出来呀
+
+当AppBarLayout接收到滚动事件的时候，它内部的子控件其实是可以指定如何去响应这些事件的，
+通过app:layout_scrollFlags属性就能实现
+这里在Toolbar中添加了一个app:layout_scrollFlags属性，
+  并将这个属性的值指定成了scroll|enterAlways|snap
+  
+随着我们向上滚动RecyclerView，Toolbar竟然消失了！而向下滚动RecyclerView，Toolbar又会重新出现。
+
+
+12.6　下拉刷新
+Google为了让Android的下拉刷新风格能有一个统一的标准，
+在Material Design中制定了一个官方的设计规范
+
+
+SwipeRefreshLayout就是用于实现下拉刷新功能的核心类，
+我们把想要实现下拉刷新功能的控件放置到SwipeRefreshLayout中，就可以迅速让这个控件支持下拉刷新。
+那么在MaterialTest项目中，应该支持下拉刷新功能的控件自然就是RecyclerView了
+
+由于SwipeRefreshLayout的用法也比较简单，下面我们就直接开始使用了。修改activity_main.xml中的代码
+
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        ...
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefresh"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+        ...
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+    ...
+</androidx.drawerlayout.widget.DrawerLayout>
+
+  
+这里我们在RecyclerView的外面又嵌套了一层SwipeRefreshLayout，
+这样RecyclerView就自动拥有下拉刷新功能了。
+另外需要注意，由于RecyclerView现在变成了SwipeRefreshLayout的子控件，
+
+不过这还没有结束，虽然RecyclerView已经支持下拉刷新功能了，但是我们还要在代码中处理具体的刷新逻辑才行
+class MainActivity : AppCompatActivity() {
+    ...
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        ...
+        swipeRefresh.setColorSchemeResources(R.color.colorPrimary)
+        swipeRefresh.setOnRefreshListener {
+            refreshFruits(adapter)
+        }
+    }
+
+    private fun refreshFruits(adapter: FruitAdapter) {
+        thread {
+            Thread.sleep(2000)
+            runOnUiThread {
+                initFruits()
+                adapter.notifyDataSetChanged()
+                swipeRefresh.isRefreshing = false
+            }
+        }
+    }
+    ...
+}
+
+首先调用SwipeRefreshLayout的setColorSchemeResources()方法来设置下拉刷新进度条的颜色，
+这里我们就使用主题中的colorPrimary作为进度条的颜色了
+
+
+
+通常情况下，当触发了下拉刷新事件，应该是去网络上请求最新的数据，
+然后再将这些数据展示出来。这里简单起见，我们就不和网络进行交互了，
+而是调用一个refreshFruits()方法进行本地刷新操作。
+refreshFruits()方法中先是开启了一个线程，然后将线程沉睡两秒钟。
+之所以这么做，是因为本地刷新操作速度非常快，如果不将线程沉睡的话，刷新立刻就结束了，从而看不到刷新的过程。
+沉睡结束之后，这里使用了runOnUiThread()方法将线程切换回主线程，然后调用initFruits()方法重新生成数据，
+接着再调用FruitAdapter的notifyDataSetChanged()方法通知数据发生了变化，
+最后调用SwipeRefreshLayout的setRefreshing()方法并传入false，表示刷新事件结束，并隐藏刷新进度条。
+因此之前使用app:layout_behavior声明的布局行为现在也要移到SwipeRefreshLayout中才行。
+
+下拉刷新的进度条只会停留两秒钟，之后就会自动消失，界面上的水果数据也会随之更新。
+
+
+
+12.7　可折叠式标题栏
+Material Design中并没有限定标题栏必须是长这个样子的，事实上，我们可以根据自己的喜好随意定制标题栏的样式。
+那么本节中我们就来实现一个可折叠式标题栏的效果，这需要借助CollapsingToolbarLayout这个工具。
+
+12.7.1　CollapsingToolbarLayout
