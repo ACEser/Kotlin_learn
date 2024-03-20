@@ -370,10 +370,13 @@ class MainActivity : AppCompatActivity() {
             val factory = SAXParserFactory.newInstance()
             val xmlReader = factory.newSAXParser().XMLReader
             val handler = ContentHandler()
+
             // 将ContentHandler的实例设置到XMLReader中
             xmlReader.contentHandler = handler
+
             // 开始执行解析
             xmlReader.parse(InputSource(StringReader(xmlData)))
+
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -489,6 +492,7 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
+
 11.5　网络请求回调的实现方式
 通常情况下我们应该将这些通用的网络操作提取到一个公共的类里，
 并提供一个通用方法，当想要发起网络请求的时候，
@@ -578,6 +582,7 @@ object HttpUtil {
 
 现在sendHttpRequest()方法接收两个参数，
 因此我们在调用它的时候还需要将HttpCallbackListener的实例传入
+
 HttpUtil.sendHttpRequest(address, object : HttpCallbackListener {
     override fun onFinish(response: String) {
         // 得到服务器返回的具体内容
@@ -609,6 +614,7 @@ HttpUtil.sendOkHttpRequest(address, object : Callback {
         // 在这里对异常情况进行处理
     }
 })
+
 
 11.6　最好用的网络库：Retrofit
 
@@ -665,7 +671,7 @@ addConverterFactory()方法用于指定Retrofit在解析数据时所使用的转
 这里指定成GsonConverterFactory。注意这两个方法都是必须调用的。
 
 
-            val appService = retrofit.create(AppService::class.java)
+val appService = retrofit.create(AppService::class.java)
 
 有了Retrofit对象之后，我们就可以调用它的create()方法，
 并传入具体Service接口所对应的Class类型，创建一个该接口的动态代理对象
@@ -1179,3 +1185,55 @@ suspend fun getBaiduResponse() {
         // 对异常情况进行处理
     }
 }
+
+
+事实上，suspendCoroutine函数几乎可以用于简化任何回调的写法，比如之前使用Retrofit来发起网络请求需要这样写
+val appService = ServiceCreator.create<AppService>()
+appService.getAppData().enqueue(object : Callback<List<App>> {
+    override fun onResponse(call: Call<List<App>>, response: Response<List<App>>) {
+        // 得到服务器返回的数据
+    }
+
+    override fun onFailure(call: Call<List<App>>, t: Throwable) {
+        // 在这里对异常情况进行处理
+    }
+})
+
+
+由于不同的Service接口返回的数据类型也不同，所以这次我们不能像刚才那样针对具体的类型进行编程了，而是要使用泛型的方式
+suspend fun <T> Call<T>.await(): T {
+    return suspendCoroutine { continuation ->
+        enqueue(object : Callback<T> {
+            override fun onResponse(call: Call<T>, response: Response<T>) {
+                val body = response.body()
+                if (body != null) continuation.resume(body)
+                else continuation.resumeWithException(
+                    RuntimeException("response body is null"))
+            }
+
+            override fun onFailure(call: Call<T>, t: Throwable) {
+                continuation.resumeWithException(t)
+            }
+        })
+    }
+}
+
+这段代码相比于刚才的request()函数又复杂了一点。首先await()函数仍然是一个挂起函数，
+然后我们给它声明了一个泛型T，并将await()函数定义成了Call<T>的扩展函数，
+这样所有返回值是Call类型的Retrofit网络请求接口就都可以直接调用await()函数了。
+
+
+
+有了await()函数之后，我们调用所有Retrofit的Service接口都会变得极其简单，
+比如刚才同样的功能就可以使用如下写法进行实现：
+suspend fun getAppData() {
+    try {
+        val appList = ServiceCreator.create<AppService>().getAppData().await()
+        // 对服务器响应的数据进行处理
+    } catch (e: Exception) {
+        // 对异常情况进行处理
+    }
+}
+
+
+
