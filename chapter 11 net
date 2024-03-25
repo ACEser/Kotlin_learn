@@ -412,6 +412,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     ...
+
     private fun parseJSONWithJSONObject(jsonData: String) {
         try {
             val jsonArray = JSONArray(jsonData)
